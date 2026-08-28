@@ -1,0 +1,2949 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TSE Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.45.4/supabase.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #161d2e;
+    --panel2: #1d2740;
+    --border: #2a3350;
+    --text: #e8ecf5;
+    --muted: #8b93ab;
+    --accent: #4f8cff;
+    --green: #2fbf71;
+    --amber: #f5a524;
+    --red: #ff5c6c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+    line-height: 1.5;
+  }
+  .container { max-width: 1320px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 20px; font-size: 13px; }
+
+  .notice {
+    background: rgba(79,140,255,0.08);
+    border: 1px solid rgba(79,140,255,0.25);
+    color: var(--accent);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .notice.warn {
+    background: rgba(245,165,36,0.08);
+    border-color: rgba(245,165,36,0.25);
+    color: var(--amber);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--muted);
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .add-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .add-grid {
+    display: grid;
+    grid-template-columns: 2fr 1.3fr 1.2fr auto;
+    gap: 10px;
+    align-items: end;
+  }
+  @media (max-width: 900px) {
+    .add-grid { grid-template-columns: 1fr; }
+  }
+  .inv-add-grid, .sites-add-grid, .lws-add-grid, .adid-add-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+  .inv-add-grid button, .sites-add-grid button, .lws-add-grid button, .adid-add-grid button { grid-column: 1 / -1; justify-self: start; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  input[type="text"], input[type="date"], select.field-select {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  button {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+  button.secondary {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+  }
+  button.danger {
+    background: transparent;
+    border: 1px solid rgba(255,92,108,0.4);
+    color: var(--red);
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  button.danger:hover {
+    background: rgba(255,92,108,0.1);
+    filter: none;
+  }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 700px) {
+    .summary { grid-template-columns: 1fr; }
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat .num { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stat.pending .num { color: var(--amber); }
+  .stat.complete .num { color: var(--green); }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .toolbar input[type="text"] {
+    flex: 1;
+    min-width: 180px;
+  }
+  select {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+  }
+
+  .table-scroll { overflow-x: auto; border-radius: 12px; }
+  .compact-table {
+    table-layout: fixed;
+    font-size: 12px;
+  }
+  .compact-table th, .compact-table td {
+    padding: 7px 8px;
+    white-space: normal;
+    word-break: break-word;
+  }
+  .compact-table input.edit-field {
+    font-size: 12px;
+    padding: 5px 6px;
+  }
+  .compact-table button.danger {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+  .lws-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .lws-empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 30px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .lws-row {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .lws-row-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .lws-row-header:hover { background: rgba(255,255,255,0.02); }
+  .lws-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lws-tag {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+  .lws-chevron {
+    color: var(--muted);
+    font-size: 12px;
+    transition: transform 0.15s;
+  }
+  @media (prefers-reduced-motion: reduce) { .lws-chevron { transition: none; } }
+  .lws-row.expanded .lws-chevron { transform: rotate(180deg); }
+  .lws-detail {
+    padding: 4px 16px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .lws-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .lws-detail-grid .field.span2 { grid-column: span 2; }
+  .add-grid .field.span2 { grid-column: span 2; }
+  @media (max-width: 640px) {
+    .add-grid .field.span2 { grid-column: span 1; }
+  }
+  .lws-detail-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+  }
+  .subtabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .subtab-btn {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .subtab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .subtab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .subtab-panel { display: none; }
+  .subtab-panel.active { display: block; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    font-size: 14px;
+  }
+  thead th {
+    background: var(--panel2);
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+  }
+  .status-badge.pending { background: rgba(245,165,36,0.15); color: var(--amber); }
+  .status-badge.complete { background: rgba(47,191,113,0.15); color: var(--green); }
+  .status-badge.active-status { background: rgba(47,191,113,0.15); color: var(--green); }
+  .status-badge.disabled-status { background: rgba(255,92,108,0.15); color: var(--red); }
+
+  .cluster-header {
+    background: var(--panel2) !important;
+  }
+  .cluster-header td {
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--border);
+  }
+
+  input.edit-field {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: var(--text);
+    font-size: 13px;
+  }
+  input.edit-field:hover {
+    border-color: var(--border);
+    background: var(--panel2);
+  }
+  input.edit-field:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--panel2);
+  }
+  input.edit-field.saved {
+    animation: flashSaved 0.8s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    input.edit-field.saved { animation: none; }
+  }
+  @keyframes flashSaved {
+    0% { background: rgba(47,191,113,0.25); }
+    100% { background: transparent; }
+  }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .cal-dow {
+    text-align: center;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    padding: 6px 0;
+  }
+  .cal-cell {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-height: 76px;
+    padding: 6px 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.15s;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cal-cell { transition: none; }
+  }
+  .cal-cell:hover { border-color: var(--accent); }
+  .cal-cell.empty { background: transparent; border-color: transparent; cursor: default; }
+  .cal-cell.today { border-color: var(--accent); }
+  .cal-date-num { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .cal-cell.today .cal-date-num { color: var(--accent); }
+  .cal-dots { display: flex; gap: 3px; flex-wrap: wrap; }
+  .cal-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .cal-dot.pending { background: var(--amber); }
+  .cal-dot.complete { background: var(--green); }
+  .cal-count { font-size: 11px; color: var(--muted); margin-top: auto; }
+
+  .cal-day-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .cal-day-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .cal-day-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .cal-day-item:last-child { border-bottom: none; }
+  .cal-day-item-info { display: flex; flex-direction: column; gap: 2px; }
+  .cal-day-item-task { font-size: 14px; }
+  .cal-day-item-assigned { font-size: 12px; color: var(--muted); }
+  .cal-empty-day { color: var(--muted); font-size: 13px; text-align: center; padding: 16px 0; }
+
+  .empty-row td {
+    text-align: center;
+    color: var(--muted);
+    padding: 30px;
+  }
+  .loading {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px;
+  }
+
+  .pin-gate {
+    position: fixed; inset: 0; z-index: 999;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pin-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    width: 280px;
+    text-align: center;
+  }
+  .pin-box h2 { margin: 0 0 8px; font-size: 20px; }
+  .pin-box p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .pin-box input {
+    width: 100%; box-sizing: border-box;
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 10px 12px; font-size: 15px; margin-bottom: 12px;
+    text-align: center; letter-spacing: 2px;
+  }
+  .pin-box button {
+    width: 100%; background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; padding: 10px 12px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .pin-error { color: var(--red); font-size: 12px; margin-top: 10px; }
+  .notice.error { background: rgba(255,92,108,0.12); color: var(--red); border-color: rgba(255,92,108,0.3); }
+</style>
+</head>
+<body>
+<div id="pinGate" class="pin-gate">
+  <div class="pin-box">
+    <h2>TSE Tracker</h2>
+    <p>Enter the team passcode to continue.</p>
+    <input type="password" id="pinInput" placeholder="Passcode" autocomplete="off">
+    <button id="pinSubmitBtn">Enter</button>
+    <div id="pinError" class="pin-error" hidden>Incorrect passcode.</div>
+  </div>
+</div>
+
+<div class="container" id="appRoot" hidden>
+  <h1>📋 TSE Tracker</h1>
+  <div class="subtitle">Shared team tool — visible and editable by everyone with access to this page.</div>
+  <div class="notice" id="storageNotice">🟡 Connecting…</div>
+
+  <datalist id="branchOptions"></datalist>
+  <datalist id="clusterOptions"></datalist>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="work">Work Tracker</button>
+    <button class="tab-btn" data-tab="sites">PMS Status</button>
+    <button class="tab-btn" data-tab="inventory">Inventory</button>
+    <button class="tab-btn" data-tab="anydesk">AnyDesk ID's</button>
+    <button class="tab-btn" data-tab="lakiwin">Lakiwin Sites</button>
+    <button class="tab-btn" data-tab="calendar">Calendar</button>
+  </div>
+
+  <!-- WORK TRACKER TAB -->
+  <div class="tab-panel active" id="tab-work">
+    <div class="add-card">
+      <div class="add-grid">
+        <div class="field">
+          <label for="inputTask">Task</label>
+          <input type="text" id="inputTask" placeholder="e.g. Update the report">
+        </div>
+        <div class="field">
+          <label for="inputAssigned">Assigned To</label>
+          <input type="text" id="inputAssigned" placeholder="Name">
+        </div>
+        <div class="field">
+          <label for="inputDate">Date</label>
+          <input type="date" id="inputDate">
+        </div>
+        <button id="addBtn">+ Add</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat pending">
+        <div class="num" id="statPending">0</div>
+        <div class="label">Pending</div>
+      </div>
+      <div class="stat complete">
+        <div class="num" id="statComplete">0</div>
+        <div class="label">Complete</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statTotal">0</div>
+        <div class="label">Total</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="searchBox" placeholder="Search task or name...">
+      <select id="filterStatus">
+        <option value="all">All Statuses</option>
+        <option value="pending">Pending only</option>
+        <option value="complete">Complete only</option>
+      </select>
+      <button class="secondary" id="refreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="exportBtn">⬇ Export to Excel</button>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Assigned To</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr class="empty-row"><td colspan="5">No tasks found. Add one above.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SITES TAB -->
+  <div class="tab-panel" id="tab-sites">
+    <div class="add-card">
+      <div class="add-grid sites-add-grid">
+        <div class="field">
+          <label for="siteCluster">Cluster</label>
+          <input type="text" id="siteCluster" list="clusterOptions" placeholder="e.g. Cluster 1">
+        </div>
+        <div class="field">
+          <label for="siteName">Site Name</label>
+          <input type="text" id="siteName" list="branchOptions" placeholder="e.g. LakiWin - New Site">
+        </div>
+        <div class="field">
+          <label for="siteTse">TSE</label>
+          <input type="text" id="siteTse" placeholder="Assigned TSE">
+        </div>
+        <div class="field">
+          <label for="siteHours">Operation Hours</label>
+          <input type="text" id="siteHours" placeholder="e.g. 24 hours">
+        </div>
+        <div class="field">
+          <label for="siteSched">Schedule Date</label>
+          <input type="text" id="siteSched" placeholder="e.g. NEW">
+        </div>
+        <div class="field">
+          <label for="siteDateDone">Date Done</label>
+          <input type="text" id="siteDateDone" placeholder="e.g. 8/28/2026">
+        </div>
+        <div class="field">
+          <label for="siteMark">Mark</label>
+          <input type="text" id="siteMark" placeholder="e.g. DONE">
+        </div>
+        <button id="siteAddBtn">+ Add Site</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statSiteTotal">0</div>
+        <div class="label">Total Sites</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statClusterTotal">0</div>
+        <div class="label">Clusters</div>
+      </div>
+      <div class="stat complete">
+        <div class="num" id="statMarkDone">0</div>
+        <div class="label">Marked Done</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="secondary" id="siteRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="siteExportBtn">⬇ Export to Excel</button>
+      <button class="secondary" id="siteImportBtn">⬆ Import from Excel</button>
+      <input type="file" id="siteImportFile" accept=".xlsx,.xls" style="display:none;">
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Site Name</th>
+            <th>TSE</th>
+            <th>Operation Hours</th>
+            <th>Schedule Date</th>
+            <th>Date Done</th>
+            <th>Mark</th>
+          </tr>
+        </thead>
+        <tbody id="sitesTableBody">
+          <tr class="empty-row"><td colspan="6">No sites found.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- INVENTORY TAB -->
+  <div class="tab-panel" id="tab-inventory">
+    <div class="subtabs">
+      <button class="subtab-btn active" data-subtab="tablets">Tablets</button>
+      <button class="subtab-btn" data-subtab="monitors">Monitors</button>
+    </div>
+
+    <!-- TABLETS SUB-TAB -->
+    <div class="subtab-panel active" id="subtab-tablets">
+      <div class="add-card">
+        <div class="add-grid inv-add-grid">
+          <div class="field">
+            <label for="invBranch">Branch</label>
+            <input type="text" id="invBranch" list="branchOptions" placeholder="e.g. Berkeley">
+          </div>
+          <div class="field">
+            <label for="invDeviceName">Device Name</label>
+            <input type="text" id="invDeviceName" placeholder="e.g. LKWTAB-085">
+          </div>
+          <div class="field">
+            <label for="invSerial">Serial Number</label>
+            <input type="text" id="invSerial" placeholder="Serial number">
+          </div>
+          <div class="field">
+            <label for="invPagcor">Pagcor Tag</label>
+            <input type="text" id="invPagcor" placeholder="Pagcor tag">
+          </div>
+          <div class="field">
+            <label for="invMac">MAC Address</label>
+            <input type="text" id="invMac" placeholder="AA:BB:CC:DD:EE:FF">
+          </div>
+          <div class="field">
+            <label for="invColor">Color</label>
+            <input type="text" id="invColor" placeholder="e.g. Silver">
+          </div>
+          <div class="field">
+            <label for="invDeviceType">Product / Model / Specs</label>
+            <input type="text" id="invDeviceType" placeholder="Galaxy Tab A9+ • SM-X210 • 8GB / 128 GB">
+          </div>
+          <div class="field">
+            <label for="invAnydesk">Anydesk ID</label>
+            <input type="text" id="invAnydesk" placeholder="Anydesk ID">
+          </div>
+          <div class="field">
+            <label for="invDateDeployed">Date Deployed</label>
+            <input type="text" id="invDateDeployed" placeholder="e.g. 8/28/2026">
+          </div>
+          <div class="field">
+            <label for="invDatePurchase">Date of Purchase</label>
+            <input type="text" id="invDatePurchase" placeholder="e.g. 8/28/2026">
+          </div>
+          <div class="field">
+            <label for="invNote">Note</label>
+            <input type="text" id="invNote" placeholder="Optional note">
+          </div>
+          <div class="field">
+            <label for="invAlias">Alias</label>
+            <input type="text" id="invAlias" placeholder="Optional alias">
+          </div>
+          <button id="invAddBtn">+ Add Device</button>
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="stat">
+          <div class="num" id="statInvTotal">0</div>
+          <div class="label">Total Devices</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statInvBranches">0</div>
+          <div class="label">Branches</div>
+        </div>
+        <div class="stat pending">
+          <div class="num" id="statInvFlagged">0</div>
+          <div class="label">With Notes</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="invSearchBox" placeholder="Search device, serial, branch, alias...">
+        <button class="secondary" id="invRefreshBtn">🔄 Refresh</button>
+        <button class="secondary" id="invExportBtn">⬇ Export to Excel</button>
+        <button class="secondary" id="invImportBtn">⬆ Import from Excel/CSV</button>
+        <input type="file" id="invImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+      </div>
+
+      <div class="table-scroll">
+        <table class="compact-table">
+          <colgroup>
+            <col style="width:9%">
+            <col style="width:11%">
+            <col style="width:8%">
+            <col style="width:11%">
+            <col style="width:5%">
+            <col style="width:14%">
+            <col style="width:7%">
+            <col style="width:7%">
+            <col style="width:7%">
+            <col style="width:9%">
+            <col style="width:6%">
+            <col style="width:6%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Device Name</th>
+              <th>Serial Number</th>
+              <th>Pagcor Tag</th>
+              <th>MAC Address</th>
+              <th>Color</th>
+              <th>Product / Model / Specs</th>
+              <th>Anydesk ID</th>
+              <th>Date Deployed</th>
+              <th>Date Purchased</th>
+              <th>Note</th>
+              <th>Alias</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="inventoryTableBody">
+            <tr class="empty-row"><td colspan="12">No devices found.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MONITORS SUB-TAB -->
+    <div class="subtab-panel" id="subtab-monitors">
+      <div class="add-card">
+        <div class="add-grid inv-add-grid">
+          <div class="field">
+            <label for="monBranch">Branch</label>
+            <input type="text" id="monBranch" list="branchOptions" placeholder="e.g. Royal Place">
+          </div>
+          <div class="field">
+            <label for="monTerminal">Terminal No.</label>
+            <input type="text" id="monTerminal" placeholder="e.g. Terminal 1">
+          </div>
+          <div class="field">
+            <label for="monSerial">Serial Number</label>
+            <input type="text" id="monSerial" placeholder="Serial number">
+          </div>
+          <div class="field">
+            <label for="monPagcor">Pagcor Tag</label>
+            <input type="text" id="monPagcor" placeholder="e.g. NA">
+          </div>
+          <div class="field">
+            <label for="monScreenSize">Screen Size</label>
+            <input type="text" id="monScreenSize" placeholder="e.g. 32' curved">
+          </div>
+          <div class="field">
+            <label for="monBrand">Brand</label>
+            <input type="text" id="monBrand" placeholder="e.g. LG">
+          </div>
+          <div class="field">
+            <label for="monDatePurchase">Date of Purchase</label>
+            <input type="text" id="monDatePurchase" placeholder="e.g. 8/28/2026">
+          </div>
+          <div class="field">
+            <label for="monRemarks">Remarks</label>
+            <input type="text" id="monRemarks" placeholder="Optional remarks">
+          </div>
+          <button id="monAddBtn">+ Add Monitor</button>
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="stat">
+          <div class="num" id="statMonTotal">0</div>
+          <div class="label">Total Monitors</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statMonBranches">0</div>
+          <div class="label">Branches</div>
+        </div>
+        <div class="stat pending">
+          <div class="num" id="statMonPending">0</div>
+          <div class="label">Missing Serial</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="monSearchBox" placeholder="Search branch, terminal, serial...">
+        <button class="secondary" id="monRefreshBtn">🔄 Refresh</button>
+        <button class="secondary" id="monExportBtn">⬇ Export to Excel</button>
+        <button class="secondary" id="monImportBtn">⬆ Import from Excel/CSV</button>
+        <input type="file" id="monImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+      </div>
+
+      <div class="table-scroll">
+        <table class="compact-table">
+          <colgroup>
+            <col style="width:14%">
+            <col style="width:14%">
+            <col style="width:10%">
+            <col style="width:14%">
+            <col style="width:10%">
+            <col style="width:14%">
+            <col style="width:16%">
+            <col style="width:8%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Terminal No.</th>
+              <th>Serial Number</th>
+              <th>Pagcor Tag</th>
+              <th>Screen Size</th>
+              <th>Brand</th>
+              <th>Date of Purchase</th>
+              <th>Remarks</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="monitorsTableBody">
+            <tr class="empty-row"><td colspan="8">No monitors found.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANYDESK ID'S TAB -->
+  <div class="tab-panel" id="tab-anydesk">
+    <div class="add-card">
+      <div class="add-grid adid-add-grid">
+        <div class="field">
+          <label for="adidSite">Site / Branch</label>
+          <input type="text" id="adidSite" list="branchOptions" placeholder="e.g. Berkeley">
+        </div>
+        <div class="field">
+          <label for="adidTerminal">Terminal / Device</label>
+          <input type="text" id="adidTerminal" placeholder="e.g. Terminal 1 or LKWTAB-001">
+        </div>
+        <div class="field">
+          <label for="adidAnydeskId">Anydesk ID</label>
+          <input type="text" id="adidAnydeskId" placeholder="Anydesk ID">
+        </div>
+        <div class="field">
+          <label for="adidType">Type</label>
+          <input type="text" id="adidType" list="adidTypeOptions" placeholder="Tablet / Desktop">
+          <datalist id="adidTypeOptions">
+            <option value="Tablet">
+            <option value="Desktop">
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="adidRemarks">Remarks</label>
+          <input type="text" id="adidRemarks" placeholder="Optional remarks">
+        </div>
+        <div class="field">
+          <label for="adidHardwareAdd">Hardware Add</label>
+          <input type="text" id="adidHardwareAdd" placeholder="Optional">
+        </div>
+        <div class="field">
+          <label for="adidUrlStatus">URL Status</label>
+          <input type="text" id="adidUrlStatus" placeholder="e.g. DONE | LakiGames">
+        </div>
+        <button id="adidAddBtn">+ Add Entry</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statAdidTotal">0</div>
+        <div class="label">Total Entries</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statAdidSites">0</div>
+        <div class="label">Sites</div>
+      </div>
+      <div class="stat pending">
+        <div class="num" id="statAdidMissing">0</div>
+        <div class="label">Missing Anydesk ID</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="adidSearchBox" placeholder="Search site, terminal, Anydesk ID...">
+      <button class="secondary" id="adidRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="adidExportBtn">⬇ Export to Excel</button>
+      <button class="secondary" id="adidImportBtn">⬆ Import from Excel/CSV</button>
+      <input type="file" id="adidImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
+
+    <div class="table-scroll">
+      <table class="compact-table">
+        <colgroup>
+          <col style="width:14%">
+          <col style="width:14%">
+          <col style="width:10%">
+          <col style="width:20%">
+          <col style="width:16%">
+          <col style="width:20%">
+          <col style="width:6%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Terminal / Device</th>
+            <th>Anydesk ID</th>
+            <th>Type</th>
+            <th>Remarks</th>
+            <th>Hardware Add</th>
+            <th>URL Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="anydeskTableBody">
+          <tr class="empty-row"><td colspan="7">No entries found.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LAKIWIN SITES TAB -->
+  <div class="tab-panel" id="tab-lakiwin">
+    <div class="add-card">
+      <div class="add-grid lws-add-grid">
+        <div class="field">
+          <label for="lwsSiteName">Site Name</label>
+          <input type="text" id="lwsSiteName" list="branchOptions" placeholder="e.g. LakiWin - New Site">
+        </div>
+        <div class="field">
+          <label for="lwsOperator">Operator</label>
+          <input type="text" id="lwsOperator" placeholder="e.g. ICBI">
+        </div>
+        <div class="field">
+          <label for="lwsOutletId">Outlet ID</label>
+          <input type="text" id="lwsOutletId" placeholder="e.g. LW38NEW">
+        </div>
+        <div class="field">
+          <label for="lwsGameOffering">Game Offering</label>
+          <input type="text" id="lwsGameOffering" placeholder="e.g. ECASINO/EBINGO">
+        </div>
+        <div class="field">
+          <label for="lwsAddress">Address</label>
+          <input type="text" id="lwsAddress" placeholder="Full address">
+        </div>
+        <div class="field">
+          <label for="lwsDateInstallation">Date of Installation</label>
+          <input type="text" id="lwsDateInstallation" placeholder="e.g. August 28, 2026">
+        </div>
+        <div class="field">
+          <label for="lwsLaunchingDate">Launching Date</label>
+          <input type="text" id="lwsLaunchingDate" placeholder="e.g. August 28, 2026">
+        </div>
+        <div class="field">
+          <label for="lwsContactPerson">Contact Person</label>
+          <input type="text" id="lwsContactPerson" placeholder="Full name">
+        </div>
+        <div class="field">
+          <label for="lwsDesignation">Designation</label>
+          <input type="text" id="lwsDesignation" placeholder="e.g. Branch manager">
+        </div>
+        <div class="field">
+          <label for="lwsContactNumber">Contact Number</label>
+          <input type="text" id="lwsContactNumber" placeholder="09XXXXXXXXX">
+        </div>
+        <div class="field">
+          <label for="lwsTerminal">Terminal</label>
+          <input type="text" id="lwsTerminal" placeholder="Count">
+        </div>
+        <div class="field">
+          <label for="lwsTablet">Tablet</label>
+          <input type="text" id="lwsTablet" placeholder="Count">
+        </div>
+        <div class="field">
+          <label for="lwsPowerAdapter">Power Adapter</label>
+          <input type="text" id="lwsPowerAdapter" placeholder="Count">
+        </div>
+        <div class="field">
+          <label for="lwsAdditionalTablet">Additional Tablet</label>
+          <input type="text" id="lwsAdditionalTablet" placeholder="Count">
+        </div>
+        <div class="field">
+          <label for="lwsVncInstalled">VNC Installed</label>
+          <input type="text" id="lwsVncInstalled" placeholder="e.g. DONE">
+        </div>
+        <div class="field">
+          <label for="lwsMapLink">Google Map Link</label>
+          <input type="text" id="lwsMapLink" placeholder="https://maps.app.goo.gl/...">
+        </div>
+        <div class="field">
+          <label for="lwsNotes">Notes</label>
+          <input type="text" id="lwsNotes" placeholder="Optional notes">
+        </div>
+        <button id="lwsAddBtn">+ Add Site</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statLwsTotal">0</div>
+        <div class="label">Total Sites</div>
+      </div>
+      <div class="stat complete">
+        <div class="num" id="statLwsActive">0</div>
+        <div class="label">Active</div>
+      </div>
+      <div class="stat pending">
+        <div class="num" id="statLwsDisabled">0</div>
+        <div class="label">Disabled</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="lwsSearchBox" placeholder="Search site, operator, contact person...">
+      <select id="lwsGameFilter">
+        <option value="all">All Game Offerings</option>
+      </select>
+      <button class="secondary" id="lwsRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="lwsExportBtn">⬇ Export to Excel</button>
+      <button class="secondary" id="lwsImportBtn">⬆ Import from Excel/CSV</button>
+      <input type="file" id="lwsImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
+
+    <div class="lws-list" id="lakiwinList">
+      <div class="lws-empty">No sites found.</div>
+    </div>
+  </div>
+
+  <!-- CALENDAR TAB -->
+  <div class="tab-panel" id="tab-calendar">
+    <div class="toolbar">
+      <button class="secondary" id="calPrevBtn">← Prev</button>
+      <div id="calMonthLabel" style="font-weight:700; font-size:15px; min-width:160px; text-align:center;"></div>
+      <button class="secondary" id="calNextBtn">Next →</button>
+      <button class="secondary" id="calTodayBtn">Today</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+
+    <div class="cal-day-panel" id="calDayPanel" style="display:none;">
+      <div class="cal-day-panel-header">
+        <div id="calDayPanelTitle" style="font-weight:700;"></div>
+        <button class="secondary" id="calDayPanelClose">✕ Close</button>
+      </div>
+      <div id="calDayPanelList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Capture the document's original static source before any dynamic
+   rendering happens. This is the canonical shell used to build every
+   republished version — never the live, mutated DOM. */
+
+let tasks = [];
+let sites = [];
+let inventory = [];
+let monitors = [];
+let lakiwinSites = [];
+let anydeskIds = [];
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : str;
+  return div.innerHTML;
+}
+
+/* ---------- SUPABASE ---------- */
+const SUPABASE_URL = "__SUPABASE_URL__";
+const SUPABASE_ANON_KEY = "__SUPABASE_ANON_KEY__";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const ENTITY_TABLE = {
+  tasks: 'tasks',
+  sites: 'sites',
+  inventory: 'inventory',
+  monitors: 'monitors',
+  lakiwinSites: 'lakiwin_sites',
+  anydeskIds: 'anydesk_ids'
+};
+
+const FIELD_MAP = {
+  tasks: { id:'id', task:'task', assigned:'assigned', date:'date', status:'status', createdAt:'created_at' },
+  sites: { id:'id', cluster:'cluster', name:'name', tse:'tse', hours:'hours', sched:'sched', datedone:'datedone', mark:'mark' },
+  inventory: { id:'id', branch:'branch', deviceName:'device_name', serial:'serial', pagcor:'pagcor', mac:'mac', color:'color', deviceType:'device_type', anydesk:'anydesk', dateDeployed:'date_deployed', datePurchase:'date_purchase', note:'note', alias:'alias' },
+  monitors: { id:'id', branch:'branch', terminal:'terminal', serial:'serial', pagcor:'pagcor', screenSize:'screen_size', brand:'brand', datePurchase:'date_purchase', remarks:'remarks' },
+  lakiwinSites: { id:'id', siteName:'site_name', operator:'operator', outletId:'outlet_id', gameOffering:'game_offering', address:'address', dateInstallation:'date_installation', launchingDate:'launching_date', contactPerson:'contact_person', designation:'designation', contactNumber:'contact_number', terminal:'terminal', tablet:'tablet', powerAdapter:'power_adapter', additionalTablet:'additional_tablet', vncInstalled:'vnc_installed', mapLink:'map_link', status:'status', notes:'notes' },
+  anydeskIds: { id:'id', site:'site', terminal:'terminal', anydeskId:'anydesk_id', type:'type', remarks:'remarks', hardwareAdd:'hardware_add', urlStatus:'url_status' }
+};
+
+function toDbRow(entity, row) {
+  const map = FIELD_MAP[entity];
+  const out = {};
+  Object.keys(map).forEach(jsKey => {
+    if (Object.prototype.hasOwnProperty.call(row, jsKey)) out[map[jsKey]] = row[jsKey];
+  });
+  return out;
+}
+function toDbPatch(entity, patch) {
+  const map = FIELD_MAP[entity];
+  const out = {};
+  Object.keys(patch).forEach(jsKey => {
+    const col = map[jsKey];
+    if (col) out[col] = patch[jsKey];
+  });
+  return out;
+}
+function fromDbRow(entity, dbRow) {
+  const map = FIELD_MAP[entity];
+  const out = {};
+  Object.keys(map).forEach(jsKey => {
+    out[jsKey] = dbRow[map[jsKey]];
+  });
+  return out;
+}
+
+async function dbInsert(entity, row) {
+  try {
+    const { error } = await sb.from(ENTITY_TABLE[entity]).insert([toDbRow(entity, row)]);
+    if (error) throw error;
+    return { ok: true };
+  } catch (err) {
+    console.error('dbInsert failed', entity, err);
+    alert('Could not save: ' + (err && err.message ? err.message : 'unknown error'));
+    return { ok: false };
+  }
+}
+async function dbUpdate(entity, id, patch) {
+  try {
+    const { error } = await sb.from(ENTITY_TABLE[entity]).update(toDbPatch(entity, patch)).eq('id', id);
+    if (error) throw error;
+    return { ok: true };
+  } catch (err) {
+    console.error('dbUpdate failed', entity, err);
+    alert('Could not save change: ' + (err && err.message ? err.message : 'unknown error'));
+    return { ok: false };
+  }
+}
+async function dbDelete(entity, id) {
+  try {
+    const { error } = await sb.from(ENTITY_TABLE[entity]).delete().eq('id', id);
+    if (error) throw error;
+    return { ok: true };
+  } catch (err) {
+    console.error('dbDelete failed', entity, err);
+    alert('Could not delete: ' + (err && err.message ? err.message : 'unknown error'));
+    return { ok: false };
+  }
+}
+async function dbUpsertAll(entity, rows) {
+  try {
+    const dbRows = rows.map(r => toDbRow(entity, r));
+    const { error } = await sb.from(ENTITY_TABLE[entity]).upsert(dbRows, { onConflict: 'id' });
+    if (error) throw error;
+    return { ok: true };
+  } catch (err) {
+    console.error('dbUpsertAll failed', entity, err);
+    alert('Import could not be saved: ' + (err && err.message ? err.message : 'unknown error'));
+    return { ok: false };
+  }
+}
+
+function applyReadOnlyUI() {}
+
+function setNotice(text, level) {
+  const notice = document.getElementById('storageNotice');
+  if (!notice) return;
+  notice.textContent = text;
+  notice.classList.toggle('error', level === 'error');
+}
+
+async function loadEntity(entity) {
+  const { data, error } = await sb.from(ENTITY_TABLE[entity]).select('*');
+  if (error) throw error;
+  return (data || []).map(row => fromDbRow(entity, row));
+}
+
+async function loadAllData() {
+  [tasks, sites, inventory, monitors, lakiwinSites, anydeskIds] = await Promise.all([
+    loadEntity('tasks'), loadEntity('sites'), loadEntity('inventory'),
+    loadEntity('monitors'), loadEntity('lakiwinSites'), loadEntity('anydeskIds')
+  ]);
+}
+
+function renderAll() {
+  renderTasks();
+  renderSites();
+  renderInventory();
+  renderMonitors();
+  renderAnydeskIds();
+  renderLakiwinSites();
+}
+
+function subscribeRealtime() {
+  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds' };
+  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds };
+  sb.channel('tse-tracker-changes')
+    .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
+      const entity = entityByTable[payload.table];
+      if (!entity) return;
+      try {
+        const rows = await loadEntity(entity);
+        if (entity === 'tasks') tasks = rows;
+        else if (entity === 'sites') sites = rows;
+        else if (entity === 'inventory') inventory = rows;
+        else if (entity === 'monitors') monitors = rows;
+        else if (entity === 'lakiwinSites') lakiwinSites = rows;
+        else if (entity === 'anydeskIds') anydeskIds = rows;
+        rendererByEntity[entity]();
+      } catch (err) {
+        console.error('realtime refresh failed', entity, err);
+      }
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') setNotice('🟢 Live — connected to the shared database.');
+    });
+}
+
+
+/* ---------- TABS ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.subtab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.subtab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('subtab-' + btn.dataset.subtab).classList.add('active');
+  });
+});
+
+/* ================= WORK TRACKER ================= */
+function sortTasks() {
+  tasks.sort((a, b) => {
+    const dateCompare = (b.date || '').localeCompare(a.date || '');
+    if (dateCompare !== 0) return dateCompare;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+}
+
+async function addTask() {
+  const taskInput = document.getElementById('inputTask');
+  const assignedInput = document.getElementById('inputAssigned');
+  const dateInput = document.getElementById('inputDate');
+
+  const taskText = taskInput.value.trim();
+  if (!taskText) { taskInput.focus(); return; }
+
+  const assigned = assignedInput.value.trim();
+  const date = dateInput.value || todayStr();
+  const id = 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const newTask = { id, task: taskText, assigned: assigned || '—', date, status: 'pending', createdAt: Date.now() };
+
+  tasks.unshift(newTask);
+  sortTasks();
+  renderTasks();
+  taskInput.value = ''; assignedInput.value = ''; dateInput.value = todayStr();
+
+  const result = await dbInsert('tasks', newTask);
+  if (!result.ok) {
+    tasks = tasks.filter(t => t.id !== id);
+    renderTasks();
+  }
+}
+
+async function toggleStatus(id) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  const prevStatus = t.status;
+  t.status = t.status === 'pending' ? 'complete' : 'pending';
+  renderTasks();
+  const result = await dbUpdate('tasks', id, { status: t.status });
+  if (!result.ok) {
+    t.status = prevStatus;
+    renderTasks();
+  }
+}
+
+async function deleteTask(id) {
+  if (!confirm('Are you sure you want to delete this task?')) return;
+  const prevTasks = tasks.slice();
+  tasks = tasks.filter(t => t.id !== id);
+  renderTasks();
+  const result = await dbDelete('tasks', id);
+  if (!result.ok) {
+    tasks = prevTasks;
+    renderTasks();
+  }
+}
+
+function exportTasksToExcel() {
+  if (tasks.length === 0) { alert('No tasks to export yet.'); return; }
+  const rows = tasks.map(t => ({
+    Task: t.task, 'Assigned To': t.assigned, Date: t.date,
+    Status: t.status === 'complete' ? 'Complete' : 'Pending'
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{ wch: 32 }, { wch: 20 }, { wch: 14 }, { wch: 12 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Work Tracker');
+  XLSX.writeFile(wb, `daily_work_tracker_${todayStr()}.xlsx`);
+}
+
+function renderTasks() {
+  const searchTerm = document.getElementById('searchBox').value.trim().toLowerCase();
+  const filterVal = document.getElementById('filterStatus').value;
+
+  const filtered = tasks.filter(t => {
+    if (filterVal !== 'all' && t.status !== filterVal) return false;
+    if (searchTerm && !(t.task + ' ' + t.assigned).toLowerCase().includes(searchTerm)) return false;
+    return true;
+  });
+
+  document.getElementById('statPending').textContent = tasks.filter(t => t.status === 'pending').length;
+  document.getElementById('statComplete').textContent = tasks.filter(t => t.status === 'complete').length;
+  document.getElementById('statTotal').textContent = tasks.length;
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No tasks found. Add one above.</td></tr>';
+  } else {
+    filtered.forEach(t => {
+      const tr = document.createElement('tr');
+      const badgeLabel = t.status === 'complete' ? '✓ Complete' : '⏳ Pending';
+      tr.innerHTML = `
+        <td>${escapeHtml(t.task)}</td>
+        <td>${escapeHtml(t.assigned)}</td>
+        <td>${escapeHtml(t.date)}</td>
+        <td><button class="status-badge ${t.status}" data-id="${t.id}" data-action="toggle">${badgeLabel}</button></td>
+        <td><button class="danger" data-id="${t.id}" data-action="delete">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  if (typeof renderCalendar === 'function' && document.getElementById('calGrid')) {
+    renderCalendar();
+  }
+  applyReadOnlyUI();
+}
+
+document.getElementById('addBtn').addEventListener('click', addTask);
+document.getElementById('inputTask').addEventListener('keypress', (e) => { if (e.key === 'Enter') addTask(); });
+document.getElementById('searchBox').addEventListener('input', renderTasks);
+document.getElementById('filterStatus').addEventListener('change', renderTasks);
+document.getElementById('refreshBtn').addEventListener('click', () => location.reload());
+document.getElementById('exportBtn').addEventListener('click', exportTasksToExcel);
+document.getElementById('tableBody').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  if (btn.dataset.action === 'toggle') toggleStatus(btn.dataset.id);
+  if (btn.dataset.action === 'delete') deleteTask(btn.dataset.id);
+});
+document.getElementById('inputDate').value = todayStr();
+
+/* ================= SITES ================= */
+function exportSitesToExcel() {
+  if (sites.length === 0) { alert('No sites to export yet.'); return; }
+  const rows = sites.map(s => ({
+    Cluster: s.cluster, 'Site Name': s.name, TSE: s.tse, 'Operation Hours': s.hours,
+    'Schedule Date': s.sched, 'Date Done': s.datedone, Mark: s.mark || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sites');
+  XLSX.writeFile(wb, `sites_tracker_${todayStr()}.xlsx`);
+}
+
+function normalizeHeader(h) {
+  return String(h || '').trim().toLowerCase().replace(/\s+/g, '');
+}
+
+async function addSite() {
+  const clusterInput = document.getElementById('siteCluster');
+  const nameInput = document.getElementById('siteName');
+  const tseInput = document.getElementById('siteTse');
+  const hoursInput = document.getElementById('siteHours');
+  const schedInput = document.getElementById('siteSched');
+  const dateDoneInput = document.getElementById('siteDateDone');
+  const markInput = document.getElementById('siteMark');
+
+  const name = nameInput.value.trim();
+  if (!name) { nameInput.focus(); return; }
+
+  const id = 'site_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const newSite = {
+    id,
+    cluster: clusterInput.value.trim() || 'Unassigned',
+    name,
+    tse: tseInput.value.trim(),
+    hours: hoursInput.value.trim(),
+    sched: schedInput.value.trim(),
+    datedone: dateDoneInput.value.trim(),
+    mark: markInput.value.trim(),
+    createdAt: Date.now()
+  };
+
+  sites.push(newSite);
+  renderSites();
+  [clusterInput, nameInput, tseInput, hoursInput, schedInput, dateDoneInput, markInput].forEach(el => el.value = '');
+
+  const result = await dbInsert('sites', newSite);
+  if (!result.ok) {
+    sites = sites.filter(s => s.id !== id);
+    renderSites();
+  }
+}
+
+/* Keeps the shared Branch / Cluster datalists in sync with whatever the
+   Sites, Tablets, and Monitors tabs currently know about, so a name typed
+   in any one of them shows up as a suggestion in the others. */
+function refreshBranchOptions() {
+  const branchNames = new Set([
+    ...sites.map(s => s.name),
+    ...inventory.map(d => d.branch),
+    ...monitors.map(m => m.branch),
+    ...lakiwinSites.map(s => s.siteName),
+    ...anydeskIds.map(a => a.site)
+  ].filter(Boolean));
+  const branchList = document.getElementById('branchOptions');
+  if (branchList) {
+    branchList.innerHTML = Array.from(branchNames).sort().map(n => `<option value="${escapeHtml(n)}">`).join('');
+  }
+
+  const clusterNames = new Set(sites.map(s => s.cluster).filter(Boolean));
+  const clusterList = document.getElementById('clusterOptions');
+  if (clusterList) {
+    clusterList.innerHTML = Array.from(clusterNames).sort().map(n => `<option value="${escapeHtml(n)}">`).join('');
+  }
+}
+
+async function importSitesFromExcel(file) {
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+    const wsName = wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    if (rows.length === 0) {
+      alert('The file appears to be empty.');
+      return;
+    }
+
+    const sample = rows[0];
+    const headerMap = {};
+    Object.keys(sample).forEach(key => {
+      const norm = normalizeHeader(key);
+      if (norm.includes('cluster')) headerMap.cluster = key;
+      else if (norm.includes('sitename') || norm === 'site' || norm === 'listofgames') headerMap.name = key;
+      else if (norm === 'tse') headerMap.tse = key;
+      else if (norm.includes('operationhour') || norm.includes('hours')) headerMap.hours = key;
+      else if (norm.includes('scheduledate') || norm === 'schedule') headerMap.sched = key;
+      else if (norm.includes('datedone')) headerMap.datedone = key;
+      else if (norm === 'mark') headerMap.mark = key;
+    });
+
+    if (!headerMap.name) {
+      alert('Could not find a "Site Name" column in the file. Please check the headers.');
+      return;
+    }
+
+    const prevSites = sites.map(s => ({ ...s }));
+    let updatedCount = 0;
+    let addedCount = 0;
+    const existingByName = new Map(sites.map(s => [s.name.trim().toLowerCase(), s]));
+
+    for (const row of rows) {
+      const name = String(row[headerMap.name] || '').trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      const cluster = headerMap.cluster ? String(row[headerMap.cluster] || '').trim() : '';
+      const tse = headerMap.tse ? String(row[headerMap.tse] || '').trim() : '';
+      const hours = headerMap.hours ? String(row[headerMap.hours] || '').trim() : '';
+      const sched = headerMap.sched ? String(row[headerMap.sched] || '').trim() : '';
+      const datedone = headerMap.datedone ? String(row[headerMap.datedone] || '').trim() : '';
+      const mark = headerMap.mark ? String(row[headerMap.mark] || '').trim() : '';
+
+      if (existingByName.has(key)) {
+        const site = existingByName.get(key);
+        if (cluster) site.cluster = cluster;
+        if (tse) site.tse = tse;
+        if (hours) site.hours = hours;
+        site.sched = sched;
+        site.datedone = datedone;
+        site.mark = mark;
+        updatedCount++;
+      } else {
+        const id = 'site_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const newSite = {
+          id, cluster: cluster || 'Unassigned', name, tse, hours, sched, datedone, mark,
+          createdAt: Date.now()
+        };
+        sites.push(newSite);
+        existingByName.set(key, newSite);
+        addedCount++;
+      }
+    }
+
+    renderSites();
+    const result = await dbUpsertAll('sites', sites);
+    if (!result.ok) {
+      sites = prevSites;
+      renderSites();
+      return;
+    }
+    alert(`Import complete: ${updatedCount} site(s) updated, ${addedCount} site(s) added.`);
+  } catch (err) {
+    alert('Failed to import file: ' + err.message);
+  }
+}
+
+function renderSites() {
+  const filtered = sites;
+
+  document.getElementById('statSiteTotal').textContent = sites.length;
+  document.getElementById('statClusterTotal').textContent = new Set(sites.map(s => s.cluster)).size;
+  document.getElementById('statMarkDone').textContent = sites.filter(s => (s.mark || '').toUpperCase().startsWith('DONE')).length;
+
+  const tbody = document.getElementById('sitesTableBody');
+  tbody.innerHTML = '';
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No sites found.</td></tr>';
+    applyReadOnlyUI();
+    refreshBranchOptions();
+    return;
+  }
+
+  const clusters = [];
+  filtered.forEach(s => { if (!clusters.includes(s.cluster)) clusters.push(s.cluster); });
+
+  clusters.forEach(cluster => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'cluster-header';
+    headerRow.innerHTML = `<td colspan="6">${escapeHtml(cluster)}</td>`;
+    tbody.appendChild(headerRow);
+
+    filtered.filter(s => s.cluster === cluster).forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(s.name)}</td>
+        <td><input type="text" class="edit-field" data-id="${s.id}" data-field="tse" value="${escapeHtml(s.tse || '')}" placeholder="—"></td>
+        <td>${escapeHtml(s.hours) || '—'}</td>
+        <td><input type="text" class="edit-field" data-id="${s.id}" data-field="sched" value="${escapeHtml(s.sched)}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${s.id}" data-field="datedone" value="${escapeHtml(s.datedone)}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${s.id}" data-field="mark" value="${escapeHtml(s.mark || '')}" placeholder="—"></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+  applyReadOnlyUI();
+  refreshBranchOptions();
+}
+
+async function updateSiteField(id, field, value) {
+  const site = sites.find(s => s.id === id);
+  if (!site) return;
+  const prevValue = site[field];
+  site[field] = value;
+  const result = await dbUpdate('sites', id, { [field]: value });
+  if (!result.ok) {
+    site[field] = prevValue;
+    renderSites();
+  }
+}
+
+document.getElementById('siteAddBtn').addEventListener('click', addSite);
+document.getElementById('siteRefreshBtn').addEventListener('click', () => location.reload());
+document.getElementById('siteExportBtn').addEventListener('click', exportSitesToExcel);
+document.getElementById('siteImportBtn').addEventListener('click', () => {
+  document.getElementById('siteImportFile').click();
+});
+document.getElementById('siteImportFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  importSitesFromExcel(file);
+  e.target.value = '';
+});
+document.getElementById('sitesTableBody').addEventListener('change', (e) => {
+  const input = e.target.closest('input.edit-field');
+  if (!input) return;
+  const id = input.dataset.id;
+  const field = input.dataset.field;
+  updateSiteField(id, field, input.value.trim());
+  input.classList.remove('saved');
+  void input.offsetWidth;
+  input.classList.add('saved');
+});
+
+/* ================= INVENTORY ================= */
+function exportInventoryToExcel() {
+  if (inventory.length === 0) { alert('No devices to export yet.'); return; }
+  const rows = inventory.map(d => ({
+    Branch: d.branch, 'Device name': d.deviceName, 'Serial number': d.serial,
+    'Pagcor Tag': d.pagcor, 'MAC Address': d.mac, Color: d.color,
+    'Product / Model / Specs': d.deviceType, 'Anydesk ID': d.anydesk,
+    'Date Deployed': d.dateDeployed, 'Date of purchase': d.datePurchase,
+    Note: d.note, Alias: d.alias
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 18 }, { wch: 10 },
+    { wch: 28 }, { wch: 12 }, { wch: 14 }, { wch: 15 }, { wch: 18 }, { wch: 12 }
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+  XLSX.writeFile(wb, `inventory_${todayStr()}.xlsx`);
+}
+
+async function addDevice() {
+  const branchInput = document.getElementById('invBranch');
+  const nameInput = document.getElementById('invDeviceName');
+  const serialInput = document.getElementById('invSerial');
+  const pagcorInput = document.getElementById('invPagcor');
+  const macInput = document.getElementById('invMac');
+  const colorInput = document.getElementById('invColor');
+  const typeInput = document.getElementById('invDeviceType');
+  const anydeskInput = document.getElementById('invAnydesk');
+  const deployedInput = document.getElementById('invDateDeployed');
+  const purchaseInput = document.getElementById('invDatePurchase');
+  const noteInput = document.getElementById('invNote');
+  const aliasInput = document.getElementById('invAlias');
+
+  const deviceName = nameInput.value.trim();
+  if (!deviceName) { nameInput.focus(); return; }
+
+  const id = 'inv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const newDevice = {
+    id,
+    branch: branchInput.value.trim() || 'Unassigned',
+    deviceName,
+    serial: serialInput.value.trim(),
+    pagcor: pagcorInput.value.trim(),
+    mac: macInput.value.trim(),
+    color: colorInput.value.trim(),
+    deviceType: typeInput.value.trim(),
+    anydesk: anydeskInput.value.trim(),
+    dateDeployed: deployedInput.value.trim(),
+    datePurchase: purchaseInput.value.trim(),
+    note: noteInput.value.trim(),
+    alias: aliasInput.value.trim()
+  };
+
+  inventory.push(newDevice);
+  renderInventory();
+  [branchInput, nameInput, serialInput, pagcorInput, macInput, colorInput, typeInput,
+    anydeskInput, deployedInput, purchaseInput, noteInput, aliasInput].forEach(el => el.value = '');
+
+  const result = await dbInsert('inventory', newDevice);
+  if (!result.ok) {
+    inventory = inventory.filter(d => d.id !== id);
+    renderInventory();
+  }
+}
+
+async function deleteDevice(id) {
+  if (!confirm('Are you sure you want to delete this device?')) return;
+  const prevInventory = inventory.slice();
+  inventory = inventory.filter(d => d.id !== id);
+  renderInventory();
+  const result = await dbDelete('inventory', id);
+  if (!result.ok) {
+    inventory = prevInventory;
+    renderInventory();
+  }
+}
+
+async function importInventoryFromExcel(file) {
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+    const wsName = wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    if (rows.length === 0) {
+      alert('The file appears to be empty.');
+      return;
+    }
+
+    const sample = rows[0];
+    const headerMap = {};
+    Object.keys(sample).forEach(key => {
+      const norm = normalizeHeader(key);
+      if (norm.includes('branch')) headerMap.branch = key;
+      else if (norm.includes('devicename') || norm === 'device') headerMap.deviceName = key;
+      else if (norm.includes('serialnumber') || norm === 'serial') headerMap.serial = key;
+      else if (norm.includes('pagcor')) headerMap.pagcor = key;
+      else if (norm.includes('macaddress') || norm === 'mac') headerMap.mac = key;
+      else if (norm === 'color') headerMap.color = key;
+      else if (norm.includes('productmodelspecs') || norm === 'devicetype' || norm === 'type') headerMap.deviceType = key;
+      else if (norm.includes('productname') || norm === 'product') headerMap.productName = key;
+      else if (norm.includes('modelname') || norm === 'model') headerMap.modelName = key;
+      else if (norm === 'specs') headerMap.specs = key;
+      else if (norm.includes('anydesk')) headerMap.anydesk = key;
+      else if (norm.includes('datedeployed')) headerMap.dateDeployed = key;
+      else if (norm.includes('dateofpurchase') || norm.includes('datepurchase')) headerMap.datePurchase = key;
+      else if (norm === 'note' || norm === 'notes') headerMap.note = key;
+      else if (norm === 'alias') headerMap.alias = key;
+    });
+
+    if (!headerMap.deviceName) {
+      alert('Could not find a "Device name" column in the file. Please check the headers.');
+      return;
+    }
+
+    const prevInventory = inventory.map(d => ({ ...d }));
+    let updatedCount = 0;
+    let addedCount = 0;
+    const existingByName = new Map(inventory.map(d => [d.deviceName.trim().toLowerCase(), d]));
+
+    for (const row of rows) {
+      const deviceName = String(row[headerMap.deviceName] || '').trim();
+      if (!deviceName) continue;
+      const key = deviceName.toLowerCase();
+      const get = (field) => headerMap[field] ? String(row[headerMap[field]] || '').trim() : '';
+      const branch = get('branch');
+      const serial = get('serial');
+      const pagcor = get('pagcor');
+      const mac = get('mac');
+      const color = get('color');
+      const anydesk = get('anydesk');
+      const dateDeployed = get('dateDeployed');
+      const datePurchase = get('datePurchase');
+      const note = get('note');
+      const alias = get('alias');
+      let deviceType = get('deviceType');
+      if (!deviceType) {
+        const parts = [get('productName'), get('modelName'), get('specs')].filter(Boolean);
+        if (parts.length) deviceType = parts.join(' • ');
+      }
+
+      if (existingByName.has(key)) {
+        const d = existingByName.get(key);
+        if (branch) d.branch = branch;
+        if (serial) d.serial = serial;
+        if (pagcor) d.pagcor = pagcor;
+        if (mac) d.mac = mac;
+        if (color) d.color = color;
+        if (deviceType) d.deviceType = deviceType;
+        d.anydesk = anydesk;
+        d.dateDeployed = dateDeployed;
+        d.datePurchase = datePurchase;
+        d.note = note;
+        d.alias = alias;
+        updatedCount++;
+      } else {
+        const id = 'inv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const newDevice = {
+          id, branch: branch || 'Unassigned', deviceName, serial, pagcor, mac, color,
+          deviceType, anydesk, dateDeployed, datePurchase, note, alias
+        };
+        inventory.push(newDevice);
+        existingByName.set(key, newDevice);
+        addedCount++;
+      }
+    }
+
+    renderInventory();
+    const result = await dbUpsertAll('inventory', inventory);
+    if (!result.ok) {
+      inventory = prevInventory;
+      renderInventory();
+      return;
+    }
+    alert(`Import complete: ${updatedCount} device(s) updated, ${addedCount} device(s) added.`);
+  } catch (err) {
+    alert('Failed to import file: ' + err.message);
+  }
+}
+
+function renderInventory() {
+  const searchTerm = document.getElementById('invSearchBox').value.trim().toLowerCase();
+  const filtered = inventory.filter(d => {
+    if (!searchTerm) return true;
+    const haystack = [d.branch, d.deviceName, d.serial, d.pagcor, d.mac, d.alias, d.note, d.deviceType].join(' ').toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+
+  document.getElementById('statInvTotal').textContent = inventory.length;
+  document.getElementById('statInvBranches').textContent = new Set(inventory.map(d => d.branch)).size;
+  document.getElementById('statInvFlagged').textContent = inventory.filter(d => (d.note || '').trim() !== '').length;
+
+  const tbody = document.getElementById('inventoryTableBody');
+  tbody.innerHTML = '';
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="12">No devices found.</td></tr>';
+    applyReadOnlyUI();
+    refreshBranchOptions();
+    return;
+  }
+
+  const branches = [];
+  filtered.forEach(d => { if (!branches.includes(d.branch)) branches.push(d.branch); });
+
+  branches.forEach(branch => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'cluster-header';
+    headerRow.innerHTML = `<td colspan="12">${escapeHtml(branch || 'Unassigned')}</td>`;
+    tbody.appendChild(headerRow);
+
+    filtered.filter(d => d.branch === branch).forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="deviceName" value="${escapeHtml(d.deviceName)}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="serial" value="${escapeHtml(d.serial || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="pagcor" value="${escapeHtml(d.pagcor || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="mac" value="${escapeHtml(d.mac || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="color" value="${escapeHtml(d.color || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="deviceType" value="${escapeHtml(d.deviceType || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="anydesk" value="${escapeHtml(d.anydesk || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="dateDeployed" value="${escapeHtml(d.dateDeployed || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="datePurchase" value="${escapeHtml(d.datePurchase || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="note" value="${escapeHtml(d.note || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="alias" value="${escapeHtml(d.alias || '')}" placeholder="—"></td>
+        <td><button class="danger" data-id="${d.id}" data-action="delete-device">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+  applyReadOnlyUI();
+  refreshBranchOptions();
+}
+
+async function updateInventoryField(id, field, value) {
+  const device = inventory.find(d => d.id === id);
+  if (!device) return;
+  const prevValue = device[field];
+  device[field] = value;
+  const result = await dbUpdate('inventory', id, { [field]: value });
+  if (!result.ok) {
+    device[field] = prevValue;
+    renderInventory();
+  }
+}
+
+document.getElementById('invAddBtn').addEventListener('click', addDevice);
+document.getElementById('invSearchBox').addEventListener('input', renderInventory);
+document.getElementById('invRefreshBtn').addEventListener('click', () => location.reload());
+document.getElementById('invExportBtn').addEventListener('click', exportInventoryToExcel);
+document.getElementById('invImportBtn').addEventListener('click', () => {
+  document.getElementById('invImportFile').click();
+});
+document.getElementById('invImportFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  importInventoryFromExcel(file);
+  e.target.value = '';
+});
+document.getElementById('inventoryTableBody').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action="delete-device"]');
+  if (!btn) return;
+  deleteDevice(btn.dataset.id);
+});
+document.getElementById('inventoryTableBody').addEventListener('change', (e) => {
+  const input = e.target.closest('input.edit-field');
+  if (!input) return;
+  const id = input.dataset.id;
+  const field = input.dataset.field;
+  updateInventoryField(id, field, input.value.trim());
+  input.classList.remove('saved');
+  void input.offsetWidth;
+  input.classList.add('saved');
+});
+
+/* ================= MONITORS ================= */
+function exportMonitorsToExcel() {
+  if (monitors.length === 0) { alert('No monitors to export yet.'); return; }
+  const rows = monitors.map(m => ({
+    Branch: m.branch, 'Terminal No.': m.terminal, 'Serial number': m.serial,
+    'Pagcor tag': m.pagcor, 'Screen size': m.screenSize, Brand: m.brand,
+    'Date of purchase': m.datePurchase, Remarks: m.remarks
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 20 }
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Monitors');
+  XLSX.writeFile(wb, `monitors_${todayStr()}.xlsx`);
+}
+
+async function addMonitor() {
+  const branchInput = document.getElementById('monBranch');
+  const terminalInput = document.getElementById('monTerminal');
+  const serialInput = document.getElementById('monSerial');
+  const pagcorInput = document.getElementById('monPagcor');
+  const screenInput = document.getElementById('monScreenSize');
+  const brandInput = document.getElementById('monBrand');
+  const purchaseInput = document.getElementById('monDatePurchase');
+  const remarksInput = document.getElementById('monRemarks');
+
+  const branch = branchInput.value.trim();
+  if (!branch) { branchInput.focus(); return; }
+
+  const id = 'mon_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const newMonitor = {
+    id,
+    branch,
+    terminal: terminalInput.value.trim(),
+    serial: serialInput.value.trim(),
+    pagcor: pagcorInput.value.trim(),
+    screenSize: screenInput.value.trim(),
+    brand: brandInput.value.trim(),
+    datePurchase: purchaseInput.value.trim(),
+    remarks: remarksInput.value.trim()
+  };
+
+  monitors.push(newMonitor);
+  renderMonitors();
+  [branchInput, terminalInput, serialInput, pagcorInput, screenInput, brandInput, purchaseInput, remarksInput]
+    .forEach(el => el.value = '');
+
+  const result = await dbInsert('monitors', newMonitor);
+  if (!result.ok) {
+    monitors = monitors.filter(m => m.id !== id);
+    renderMonitors();
+  }
+}
+
+async function deleteMonitor(id) {
+  if (!confirm('Are you sure you want to delete this monitor?')) return;
+  const prevMonitors = monitors.slice();
+  monitors = monitors.filter(m => m.id !== id);
+  renderMonitors();
+  const result = await dbDelete('monitors', id);
+  if (!result.ok) {
+    monitors = prevMonitors;
+    renderMonitors();
+  }
+}
+
+async function importMonitorsFromExcel(file) {
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+    const wsName = wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    if (rows.length === 0) {
+      alert('The file appears to be empty.');
+      return;
+    }
+
+    const sample = rows[0];
+    const headerMap = {};
+    Object.keys(sample).forEach(key => {
+      const norm = normalizeHeader(key);
+      if (norm.includes('branch')) headerMap.branch = key;
+      else if (norm.includes('terminal')) headerMap.terminal = key;
+      else if (norm.includes('serialnumber') || norm === 'serial') headerMap.serial = key;
+      else if (norm.includes('pagcor')) headerMap.pagcor = key;
+      else if (norm.includes('screensize') || norm === 'size') headerMap.screenSize = key;
+      else if (norm === 'brand') headerMap.brand = key;
+      else if (norm.includes('dateofpurchase') || norm.includes('datepurchase')) headerMap.datePurchase = key;
+      else if (norm === 'remarks' || norm === 'note' || norm === 'notes') headerMap.remarks = key;
+    });
+
+    if (!headerMap.branch) {
+      alert('Could not find a "Branch" column in the file. Please check the headers.');
+      return;
+    }
+
+    const prevMonitors = monitors.map(m => ({ ...m }));
+    let updatedCount = 0;
+    let addedCount = 0;
+    // Match existing rows by branch + terminal (monitors have no unique serial when data is pending).
+    const existingByKey = new Map(monitors.map(m => [(m.branch.trim() + '|' + (m.terminal || '').trim()).toLowerCase(), m]));
+
+    for (const row of rows) {
+      const branch = String(row[headerMap.branch] || '').trim();
+      if (!branch) continue;
+      const get = (field) => headerMap[field] ? String(row[headerMap[field]] || '').trim() : '';
+      const terminal = get('terminal');
+      const serial = get('serial');
+      const pagcor = get('pagcor');
+      const screenSize = get('screenSize');
+      const brand = get('brand');
+      const datePurchase = get('datePurchase');
+      const remarks = get('remarks');
+      const key = (branch + '|' + terminal).toLowerCase();
+
+      if (existingByKey.has(key)) {
+        const m = existingByKey.get(key);
+        m.branch = branch;
+        if (serial) m.serial = serial;
+        if (pagcor) m.pagcor = pagcor;
+        if (screenSize) m.screenSize = screenSize;
+        if (brand) m.brand = brand;
+        if (datePurchase) m.datePurchase = datePurchase;
+        if (remarks) m.remarks = remarks;
+        updatedCount++;
+      } else {
+        const id = 'mon_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const newMonitor = { id, branch, terminal, serial, pagcor, screenSize, brand, datePurchase, remarks };
+        monitors.push(newMonitor);
+        existingByKey.set(key, newMonitor);
+        addedCount++;
+      }
+    }
+
+    renderMonitors();
+    const result = await dbUpsertAll('monitors', monitors);
+    if (!result.ok) {
+      monitors = prevMonitors;
+      renderMonitors();
+      return;
+    }
+    alert(`Import complete: ${updatedCount} monitor(s) updated, ${addedCount} monitor(s) added.`);
+  } catch (err) {
+    alert('Failed to import file: ' + err.message);
+  }
+}
+
+function renderMonitors() {
+  const searchTerm = document.getElementById('monSearchBox').value.trim().toLowerCase();
+  const filtered = monitors.filter(m => {
+    if (!searchTerm) return true;
+    const haystack = [m.branch, m.terminal, m.serial, m.pagcor, m.brand, m.remarks].join(' ').toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+
+  document.getElementById('statMonTotal').textContent = monitors.length;
+  document.getElementById('statMonBranches').textContent = new Set(monitors.map(m => m.branch)).size;
+  document.getElementById('statMonPending').textContent = monitors.filter(m => (m.serial || '').trim() === '').length;
+
+  const tbody = document.getElementById('monitorsTableBody');
+  tbody.innerHTML = '';
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No monitors found.</td></tr>';
+    applyReadOnlyUI();
+    refreshBranchOptions();
+    return;
+  }
+
+  const branches = [];
+  filtered.forEach(m => { if (!branches.includes(m.branch)) branches.push(m.branch); });
+
+  branches.forEach(branch => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'cluster-header';
+    headerRow.innerHTML = `<td colspan="8">${escapeHtml(branch || 'Unassigned')}</td>`;
+    tbody.appendChild(headerRow);
+
+    filtered.filter(m => m.branch === branch).forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="terminal" value="${escapeHtml(m.terminal || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="serial" value="${escapeHtml(m.serial || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="pagcor" value="${escapeHtml(m.pagcor || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="screenSize" value="${escapeHtml(m.screenSize || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="brand" value="${escapeHtml(m.brand || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="datePurchase" value="${escapeHtml(m.datePurchase || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="remarks" value="${escapeHtml(m.remarks || '')}" placeholder="—"></td>
+        <td><button class="danger" data-id="${m.id}" data-action="delete-monitor">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+  applyReadOnlyUI();
+  refreshBranchOptions();
+}
+
+async function updateMonitorField(id, field, value) {
+  const monitor = monitors.find(m => m.id === id);
+  if (!monitor) return;
+  const prevValue = monitor[field];
+  monitor[field] = value;
+  const result = await dbUpdate('monitors', id, { [field]: value });
+  if (!result.ok) {
+    monitor[field] = prevValue;
+    renderMonitors();
+  }
+}
+
+document.getElementById('monAddBtn').addEventListener('click', addMonitor);
+document.getElementById('monSearchBox').addEventListener('input', renderMonitors);
+document.getElementById('monRefreshBtn').addEventListener('click', () => location.reload());
+document.getElementById('monExportBtn').addEventListener('click', exportMonitorsToExcel);
+document.getElementById('monImportBtn').addEventListener('click', () => {
+  document.getElementById('monImportFile').click();
+});
+document.getElementById('monImportFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  importMonitorsFromExcel(file);
+  e.target.value = '';
+});
+document.getElementById('monitorsTableBody').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action="delete-monitor"]');
+  if (!btn) return;
+  deleteMonitor(btn.dataset.id);
+});
+document.getElementById('monitorsTableBody').addEventListener('change', (e) => {
+  const input = e.target.closest('input.edit-field');
+  if (!input) return;
+  const id = input.dataset.id;
+  const field = input.dataset.field;
+  updateMonitorField(id, field, input.value.trim());
+  input.classList.remove('saved');
+  void input.offsetWidth;
+  input.classList.add('saved');
+});
+
+/* ================= ANYDESK ID'S ================= */
+function exportAnydeskToExcel() {
+  if (anydeskIds.length === 0) { alert('No AnyDesk entries to export yet.'); return; }
+  const rows = anydeskIds.map(a => ({
+    Site: a.site, Terminal: a.terminal, 'Anydesk ID': a.anydeskId, Type: a.type,
+    Remarks: a.remarks, 'Hardware Add': a.hardwareAdd, 'URL Status': a.urlStatus
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 10 }, { wch: 22 }, { wch: 18 }, { wch: 20 }
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'AnyDesk IDs');
+  XLSX.writeFile(wb, `anydesk_ids_${todayStr()}.xlsx`);
+}
+
+async function addAnydeskEntry() {
+  const siteInput = document.getElementById('adidSite');
+  const terminalInput = document.getElementById('adidTerminal');
+  const anydeskIdInput = document.getElementById('adidAnydeskId');
+  const typeInput = document.getElementById('adidType');
+  const remarksInput = document.getElementById('adidRemarks');
+  const hardwareAddInput = document.getElementById('adidHardwareAdd');
+  const urlStatusInput = document.getElementById('adidUrlStatus');
+
+  const site = siteInput.value.trim();
+  if (!site) { siteInput.focus(); return; }
+
+  const id = 'adid_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const newEntry = {
+    id,
+    site,
+    terminal: terminalInput.value.trim(),
+    anydeskId: anydeskIdInput.value.trim(),
+    type: typeInput.value.trim(),
+    remarks: remarksInput.value.trim(),
+    hardwareAdd: hardwareAddInput.value.trim(),
+    urlStatus: urlStatusInput.value.trim()
+  };
+
+  anydeskIds.push(newEntry);
+  renderAnydeskIds();
+  [siteInput, terminalInput, anydeskIdInput, typeInput, remarksInput, hardwareAddInput, urlStatusInput]
+    .forEach(el => el.value = '');
+
+  const result = await dbInsert('anydeskIds', newEntry);
+  if (!result.ok) {
+    anydeskIds = anydeskIds.filter(a => a.id !== id);
+    renderAnydeskIds();
+  }
+}
+
+async function deleteAnydeskEntry(id) {
+  if (!confirm('Are you sure you want to delete this entry?')) return;
+  const prevAnydeskIds = anydeskIds.slice();
+  anydeskIds = anydeskIds.filter(a => a.id !== id);
+  renderAnydeskIds();
+  const result = await dbDelete('anydeskIds', id);
+  if (!result.ok) {
+    anydeskIds = prevAnydeskIds;
+    renderAnydeskIds();
+  }
+}
+
+async function importAnydeskFromExcel(file) {
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+    const wsName = wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    if (rows.length === 0) {
+      alert('The file appears to be empty.');
+      return;
+    }
+
+    const sample = rows[0];
+    const headerMap = {};
+    Object.keys(sample).forEach(key => {
+      const norm = normalizeHeader(key);
+      if (norm === 'site' || norm.includes('branch')) headerMap.site = key;
+      else if (norm.includes('terminal')) headerMap.terminal = key;
+      else if (norm.includes('anydesk')) headerMap.anydeskId = key;
+      else if (norm === 'type') headerMap.type = key;
+      else if (norm === 'remarks' || norm === 'note' || norm === 'notes') headerMap.remarks = key;
+      else if (norm.includes('hardware')) headerMap.hardwareAdd = key;
+      else if (norm.includes('urlstatus') || norm === 'status') headerMap.urlStatus = key;
+    });
+
+    if (!headerMap.site) {
+      alert('Could not find a "Site" column in the file. Please check the headers.');
+      return;
+    }
+
+    const prevAnydeskIds = anydeskIds.map(a => ({ ...a }));
+    let updatedCount = 0;
+    let addedCount = 0;
+    // Match existing rows by site + terminal (entries have no other unique key).
+    const existingByKey = new Map(anydeskIds.map(a => [(a.site.trim() + '|' + (a.terminal || '').trim()).toLowerCase(), a]));
+
+    for (const row of rows) {
+      const site = String(row[headerMap.site] || '').trim();
+      if (!site) continue;
+      const get = (field) => headerMap[field] ? String(row[headerMap[field]] || '').trim() : '';
+      const terminal = get('terminal');
+      const anydeskId = get('anydeskId');
+      const type = get('type');
+      const remarks = get('remarks');
+      const hardwareAdd = get('hardwareAdd');
+      const urlStatus = get('urlStatus');
+      const key = (site + '|' + terminal).toLowerCase();
+
+      if (existingByKey.has(key)) {
+        const a = existingByKey.get(key);
+        a.site = site;
+        if (anydeskId) a.anydeskId = anydeskId;
+        if (type) a.type = type;
+        if (remarks) a.remarks = remarks;
+        if (hardwareAdd) a.hardwareAdd = hardwareAdd;
+        if (urlStatus) a.urlStatus = urlStatus;
+        updatedCount++;
+      } else {
+        const id = 'adid_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const newEntry = { id, site, terminal, anydeskId, type, remarks, hardwareAdd, urlStatus };
+        anydeskIds.push(newEntry);
+        existingByKey.set(key, newEntry);
+        addedCount++;
+      }
+    }
+
+    renderAnydeskIds();
+    const result = await dbUpsertAll('anydeskIds', anydeskIds);
+    if (!result.ok) {
+      anydeskIds = prevAnydeskIds;
+      renderAnydeskIds();
+      return;
+    }
+    alert(`Import complete: ${updatedCount} entry(ies) updated, ${addedCount} entry(ies) added.`);
+  } catch (err) {
+    alert('Failed to import file: ' + err.message);
+  }
+}
+
+function renderAnydeskIds() {
+  const searchTerm = document.getElementById('adidSearchBox').value.trim().toLowerCase();
+  const filtered = anydeskIds.filter(a => {
+    if (!searchTerm) return true;
+    const haystack = [a.site, a.terminal, a.anydeskId, a.type, a.remarks, a.urlStatus].join(' ').toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+
+  document.getElementById('statAdidTotal').textContent = anydeskIds.length;
+  document.getElementById('statAdidSites').textContent = new Set(anydeskIds.map(a => a.site)).size;
+  document.getElementById('statAdidMissing').textContent = anydeskIds.filter(a => (a.anydeskId || '').trim() === '').length;
+
+  const tbody = document.getElementById('anydeskTableBody');
+  tbody.innerHTML = '';
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No entries found.</td></tr>';
+    applyReadOnlyUI();
+    refreshBranchOptions();
+    return;
+  }
+
+  const siteList = [];
+  filtered.forEach(a => { if (!siteList.includes(a.site)) siteList.push(a.site); });
+
+  siteList.forEach(site => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'cluster-header';
+    headerRow.innerHTML = `<td colspan="7">${escapeHtml(site || 'Unassigned')}</td>`;
+    tbody.appendChild(headerRow);
+
+    filtered.filter(a => a.site === site).forEach(a => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="terminal" value="${escapeHtml(a.terminal || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="anydeskId" value="${escapeHtml(a.anydeskId || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="type" value="${escapeHtml(a.type || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="remarks" value="${escapeHtml(a.remarks || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="hardwareAdd" value="${escapeHtml(a.hardwareAdd || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="urlStatus" value="${escapeHtml(a.urlStatus || '')}" placeholder="—"></td>
+        <td><button class="danger" data-id="${a.id}" data-action="delete-anydesk">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+  applyReadOnlyUI();
+  refreshBranchOptions();
+}
+
+async function updateAnydeskField(id, field, value) {
+  const entry = anydeskIds.find(a => a.id === id);
+  if (!entry) return;
+  const prevValue = entry[field];
+  entry[field] = value;
+  const result = await dbUpdate('anydeskIds', id, { [field]: value });
+  if (!result.ok) {
+    entry[field] = prevValue;
+    renderAnydeskIds();
+  }
+}
+
+document.getElementById('adidAddBtn').addEventListener('click', addAnydeskEntry);
+document.getElementById('adidSearchBox').addEventListener('input', renderAnydeskIds);
+document.getElementById('adidRefreshBtn').addEventListener('click', () => location.reload());
+document.getElementById('adidExportBtn').addEventListener('click', exportAnydeskToExcel);
+document.getElementById('adidImportBtn').addEventListener('click', () => {
+  document.getElementById('adidImportFile').click();
+});
+document.getElementById('adidImportFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  importAnydeskFromExcel(file);
+  e.target.value = '';
+});
+document.getElementById('anydeskTableBody').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action="delete-anydesk"]');
+  if (!btn) return;
+  deleteAnydeskEntry(btn.dataset.id);
+});
+document.getElementById('anydeskTableBody').addEventListener('change', (e) => {
+  const input = e.target.closest('input.edit-field');
+  if (!input) return;
+  const id = input.dataset.id;
+  const field = input.dataset.field;
+  updateAnydeskField(id, field, input.value.trim());
+  input.classList.remove('saved');
+  void input.offsetWidth;
+  input.classList.add('saved');
+});
+
+/* ================= LAKIWIN SITES ================= */
+function lwsGameTokens(offering) {
+  return String(offering || '').split('/').map(t => t.trim()).filter(Boolean);
+}
+
+function refreshLwsGameFilterOptions() {
+  const select = document.getElementById('lwsGameFilter');
+  if (!select) return;
+  const current = select.value || 'all';
+  const tokens = new Set();
+  lakiwinSites.forEach(s => lwsGameTokens(s.gameOffering).forEach(t => tokens.add(t)));
+  const sorted = Array.from(tokens).sort();
+  select.innerHTML = '<option value="all">All Game Offerings</option>' +
+    sorted.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  select.value = sorted.includes(current) || current === 'all' ? current : 'all';
+}
+
+function exportLakiwinSitesToExcel() {
+  if (lakiwinSites.length === 0) { alert('No sites to export yet.'); return; }
+  const rows = lakiwinSites.map(s => ({
+    'Site Name': s.siteName, Operator: s.operator, 'Outlet ID': s.outletId,
+    'Game Offering': s.gameOffering, Address: s.address,
+    'Date of Installation': s.dateInstallation, 'Launching Date': s.launchingDate,
+    'Contact Person': s.contactPerson, Designation: s.designation, 'Contact Number': s.contactNumber,
+    Terminal: s.terminal, Tablet: s.tablet, 'Power Adapter': s.powerAdapter,
+    'Additional Tablet': s.additionalTablet, 'VNC Installed': s.vncInstalled,
+    'Google Map Link': s.mapLink, Status: s.status, Notes: s.notes
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 20 }, { wch: 18 }, { wch: 10 }, { wch: 18 }, { wch: 32 }, { wch: 14 }, { wch: 14 },
+    { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 10 },
+    { wch: 8 }, { wch: 24 }, { wch: 10 }, { wch: 24 }
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Lakiwin Sites');
+  XLSX.writeFile(wb, `lakiwin_sites_${todayStr()}.xlsx`);
+}
+
+async function addLakiwinSite() {
+  const ids = ['lwsSiteName','lwsOperator','lwsOutletId','lwsGameOffering','lwsAddress',
+    'lwsDateInstallation','lwsLaunchingDate','lwsContactPerson','lwsDesignation','lwsContactNumber',
+    'lwsTerminal','lwsTablet','lwsPowerAdapter','lwsAdditionalTablet','lwsVncInstalled','lwsMapLink','lwsNotes'];
+  const inputs = {};
+  ids.forEach(id => { inputs[id] = document.getElementById(id); });
+
+  const siteName = inputs.lwsSiteName.value.trim();
+  if (!siteName) { inputs.lwsSiteName.focus(); return; }
+
+  const id = 'lws_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const newSite = {
+    id, siteName,
+    operator: inputs.lwsOperator.value.trim(),
+    outletId: inputs.lwsOutletId.value.trim(),
+    gameOffering: inputs.lwsGameOffering.value.trim(),
+    address: inputs.lwsAddress.value.trim(),
+    dateInstallation: inputs.lwsDateInstallation.value.trim(),
+    launchingDate: inputs.lwsLaunchingDate.value.trim(),
+    contactPerson: inputs.lwsContactPerson.value.trim(),
+    designation: inputs.lwsDesignation.value.trim(),
+    contactNumber: inputs.lwsContactNumber.value.trim(),
+    terminal: inputs.lwsTerminal.value.trim(),
+    tablet: inputs.lwsTablet.value.trim(),
+    powerAdapter: inputs.lwsPowerAdapter.value.trim(),
+    additionalTablet: inputs.lwsAdditionalTablet.value.trim(),
+    vncInstalled: inputs.lwsVncInstalled.value.trim(),
+    mapLink: inputs.lwsMapLink.value.trim(),
+    status: 'Active',
+    notes: inputs.lwsNotes.value.trim()
+  };
+
+  lakiwinSites.push(newSite);
+  renderLakiwinSites();
+  ids.forEach(id => { inputs[id].value = ''; });
+
+  const result = await dbInsert('lakiwinSites', newSite);
+  if (!result.ok) {
+    lakiwinSites = lakiwinSites.filter(s => s.id !== id);
+    renderLakiwinSites();
+  }
+}
+
+async function deleteLakiwinSite(id) {
+  if (!confirm('Are you sure you want to delete this site?')) return;
+  const prev = lakiwinSites.slice();
+  lakiwinSites = lakiwinSites.filter(s => s.id !== id);
+  renderLakiwinSites();
+  const result = await dbDelete('lakiwinSites', id);
+  if (!result.ok) {
+    lakiwinSites = prev;
+    renderLakiwinSites();
+  }
+}
+
+async function toggleLakiwinStatus(id) {
+  const site = lakiwinSites.find(s => s.id === id);
+  if (!site) return;
+  const prevStatus = site.status;
+  site.status = site.status === 'Active' ? 'Disabled' : 'Active';
+  renderLakiwinSites();
+  const result = await dbUpdate('lakiwinSites', id, { status: site.status });
+  if (!result.ok) {
+    site.status = prevStatus;
+    renderLakiwinSites();
+  }
+}
+
+async function updateLakiwinField(id, field, value) {
+  const site = lakiwinSites.find(s => s.id === id);
+  if (!site) return;
+  const prevValue = site[field];
+  site[field] = value;
+  const result = await dbUpdate('lakiwinSites', id, { [field]: value });
+  if (!result.ok) {
+    site[field] = prevValue;
+    renderLakiwinSites();
+  }
+}
+
+async function importLakiwinSitesFromExcel(file) {
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+    const wsName = wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    if (rows.length === 0) {
+      alert('The file appears to be empty.');
+      return;
+    }
+
+    const sample = rows[0];
+    const headerMap = {};
+    Object.keys(sample).forEach(key => {
+      const norm = normalizeHeader(key);
+      if (norm.includes('sitename')) headerMap.siteName = key;
+      else if (norm === 'operator') headerMap.operator = key;
+      else if (norm.includes('outletid')) headerMap.outletId = key;
+      else if (norm.includes('gameoffering')) headerMap.gameOffering = key;
+      else if (norm === 'address') headerMap.address = key;
+      else if (norm.includes('dateofinstallation') || norm.includes('dateinstall')) headerMap.dateInstallation = key;
+      else if (norm.includes('launchingdate') || norm.includes('launchdate')) headerMap.launchingDate = key;
+      else if (norm.includes('contactperson')) headerMap.contactPerson = key;
+      else if (norm === 'designation') headerMap.designation = key;
+      else if (norm.includes('contactnumber')) headerMap.contactNumber = key;
+      else if (norm === 'terminal') headerMap.terminal = key;
+      else if (norm === 'tablet') headerMap.tablet = key;
+      else if (norm.includes('poweradapter')) headerMap.powerAdapter = key;
+      else if (norm.includes('additionaltablet')) headerMap.additionalTablet = key;
+      else if (norm.includes('vncinstalled') || norm === 'vnc') headerMap.vncInstalled = key;
+      else if (norm.includes('googlemaplink') || norm.includes('maplink')) headerMap.mapLink = key;
+      else if (norm === 'status') headerMap.status = key;
+      else if (norm === 'notes' || norm === 'note') headerMap.notes = key;
+    });
+
+    if (!headerMap.siteName) {
+      alert('Could not find a "Site Name" column in the file. Please check the headers.');
+      return;
+    }
+
+    const prev = lakiwinSites.map(s => ({ ...s }));
+    let updatedCount = 0;
+    let addedCount = 0;
+    const existingByName = new Map(lakiwinSites.map(s => [s.siteName.trim().toLowerCase(), s]));
+
+    for (const row of rows) {
+      const siteName = String(row[headerMap.siteName] || '').trim();
+      if (!siteName) continue;
+      const key = siteName.toLowerCase();
+      const get = (field) => headerMap[field] ? String(row[headerMap[field]] || '').trim() : '';
+      const statusRaw = get('status');
+      const status = statusRaw ? (statusRaw.toLowerCase().startsWith('active') ? 'Active' : 'Disabled') : '';
+
+      if (existingByName.has(key)) {
+        const s = existingByName.get(key);
+        if (get('operator')) s.operator = get('operator');
+        if (get('outletId')) s.outletId = get('outletId');
+        if (get('gameOffering')) s.gameOffering = get('gameOffering');
+        if (get('address')) s.address = get('address');
+        if (get('dateInstallation')) s.dateInstallation = get('dateInstallation');
+        if (get('launchingDate')) s.launchingDate = get('launchingDate');
+        if (get('contactPerson')) s.contactPerson = get('contactPerson');
+        if (get('designation')) s.designation = get('designation');
+        if (get('contactNumber')) s.contactNumber = get('contactNumber');
+        s.terminal = get('terminal');
+        s.tablet = get('tablet');
+        s.powerAdapter = get('powerAdapter');
+        s.additionalTablet = get('additionalTablet');
+        s.vncInstalled = get('vncInstalled');
+        if (get('mapLink')) s.mapLink = get('mapLink');
+        if (status) s.status = status;
+        s.notes = get('notes');
+        updatedCount++;
+      } else {
+        const id = 'lws_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const newSite = {
+          id, siteName, operator: get('operator'), outletId: get('outletId'),
+          gameOffering: get('gameOffering'), address: get('address'),
+          dateInstallation: get('dateInstallation'), launchingDate: get('launchingDate'),
+          contactPerson: get('contactPerson'), designation: get('designation'),
+          contactNumber: get('contactNumber'), terminal: get('terminal'), tablet: get('tablet'),
+          powerAdapter: get('powerAdapter'), additionalTablet: get('additionalTablet'),
+          vncInstalled: get('vncInstalled'), mapLink: get('mapLink'),
+          status: status || 'Active', notes: get('notes')
+        };
+        lakiwinSites.push(newSite);
+        existingByName.set(key, newSite);
+        addedCount++;
+      }
+    }
+
+    renderLakiwinSites();
+    const result = await dbUpsertAll('lakiwinSites', lakiwinSites);
+    if (!result.ok) {
+      lakiwinSites = prev;
+      renderLakiwinSites();
+      return;
+    }
+    alert(`Import complete: ${updatedCount} site(s) updated, ${addedCount} site(s) added.`);
+  } catch (err) {
+    alert('Failed to import file: ' + err.message);
+  }
+}
+
+// ids of sites whose detail panel is currently open — preserved across re-renders
+let lwsExpanded = new Set();
+
+function lwsField(label, id, field, value, span2) {
+  return `
+    <div class="field${span2 ? ' span2' : ''}">
+      <label for="${id}">${label}</label>
+      <input type="text" id="${id}" class="edit-field" data-id="${id.split('__')[0]}" data-field="${field}" value="${escapeHtml(value || '')}" placeholder="—">
+    </div>`;
+}
+
+function renderLakiwinSites() {
+  refreshLwsGameFilterOptions();
+  const searchTerm = document.getElementById('lwsSearchBox').value.trim().toLowerCase();
+  const gameFilter = document.getElementById('lwsGameFilter').value;
+
+  const filtered = lakiwinSites.filter(s => {
+    if (gameFilter !== 'all' && !lwsGameTokens(s.gameOffering).includes(gameFilter)) return false;
+    if (!searchTerm) return true;
+    const haystack = [s.siteName, s.operator, s.outletId, s.contactPerson, s.address].join(' ').toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+
+  // Keep the list sorted by site name so a newly added site lands in place.
+  filtered.sort((a, b) => a.siteName.localeCompare(b.siteName, undefined, { sensitivity: 'base' }));
+
+  document.getElementById('statLwsTotal').textContent = lakiwinSites.length;
+  document.getElementById('statLwsActive').textContent = lakiwinSites.filter(s => s.status === 'Active').length;
+  document.getElementById('statLwsDisabled').textContent = lakiwinSites.filter(s => s.status === 'Disabled').length;
+
+  const list = document.getElementById('lakiwinList');
+  list.innerHTML = '';
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="lws-empty">No sites found.</div>';
+    refreshBranchOptions();
+    return;
+  }
+
+  filtered.forEach(s => {
+    const statusClass = s.status === 'Active' ? 'active-status' : 'disabled-status';
+    const statusLabel = s.status === 'Active' ? '✓ Active' : '✕ Disabled';
+    const isOpen = lwsExpanded.has(s.id);
+    const row = document.createElement('div');
+    row.className = 'lws-row' + (isOpen ? ' expanded' : '');
+    row.dataset.id = s.id;
+    row.innerHTML = `
+      <div class="lws-row-header" data-id="${s.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
+        <span class="lws-name">${escapeHtml(s.siteName)}</span>
+        ${s.gameOffering ? `<span class="lws-tag">${escapeHtml(s.gameOffering)}</span>` : ''}
+        <button class="status-badge ${statusClass}" data-id="${s.id}" data-action="toggle-status">${statusLabel}</button>
+        <span class="lws-chevron">▾</span>
+      </div>
+      <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
+        <div class="field span2">
+          <label for="${s.id}__siteName">Site Name</label>
+          <input type="text" id="${s.id}__siteName" class="edit-field" data-id="${s.id}" data-field="siteName" value="${escapeHtml(s.siteName)}" placeholder="—">
+        </div>
+        <div class="lws-detail-grid">
+          ${lwsField('Operator', s.id + '__operator', 'operator', s.operator)}
+          ${lwsField('Outlet ID', s.id + '__outletId', 'outletId', s.outletId)}
+          ${lwsField('Game Offering', s.id + '__gameOffering', 'gameOffering', s.gameOffering)}
+          ${lwsField('Address', s.id + '__address', 'address', s.address, true)}
+          ${lwsField('Date of Installation', s.id + '__dateInstallation', 'dateInstallation', s.dateInstallation)}
+          ${lwsField('Launching Date', s.id + '__launchingDate', 'launchingDate', s.launchingDate)}
+          ${lwsField('Contact Person', s.id + '__contactPerson', 'contactPerson', s.contactPerson)}
+          ${lwsField('Designation', s.id + '__designation', 'designation', s.designation)}
+          ${lwsField('Contact Number', s.id + '__contactNumber', 'contactNumber', s.contactNumber)}
+          ${lwsField('Terminal', s.id + '__terminal', 'terminal', s.terminal)}
+          ${lwsField('Tablet', s.id + '__tablet', 'tablet', s.tablet)}
+          ${lwsField('Power Adapter', s.id + '__powerAdapter', 'powerAdapter', s.powerAdapter)}
+          ${lwsField('Additional Tablet', s.id + '__additionalTablet', 'additionalTablet', s.additionalTablet)}
+          ${lwsField('VNC Installed', s.id + '__vncInstalled', 'vncInstalled', s.vncInstalled)}
+          ${lwsField('Google Map Link', s.id + '__mapLink', 'mapLink', s.mapLink, true)}
+          ${lwsField('Notes', s.id + '__notes', 'notes', s.notes, true)}
+        </div>
+        <div class="lws-detail-actions">
+          <button class="danger" data-id="${s.id}" data-action="delete-site">Delete Site</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+  applyReadOnlyUI();
+  refreshBranchOptions();
+}
+
+document.getElementById('lwsAddBtn').addEventListener('click', addLakiwinSite);
+document.getElementById('lwsSearchBox').addEventListener('input', renderLakiwinSites);
+document.getElementById('lwsGameFilter').addEventListener('change', renderLakiwinSites);
+document.getElementById('lwsRefreshBtn').addEventListener('click', () => location.reload());
+document.getElementById('lwsExportBtn').addEventListener('click', exportLakiwinSitesToExcel);
+document.getElementById('lwsImportBtn').addEventListener('click', () => {
+  document.getElementById('lwsImportFile').click();
+});
+document.getElementById('lwsImportFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  importLakiwinSitesFromExcel(file);
+  e.target.value = '';
+});
+function toggleLwsRow(header) {
+  const id = header.dataset.id;
+  const row = header.closest('.lws-row');
+  const detail = row.querySelector('.lws-detail');
+  if (lwsExpanded.has(id)) {
+    lwsExpanded.delete(id);
+    detail.hidden = true;
+    row.classList.remove('expanded');
+    header.setAttribute('aria-expanded', 'false');
+  } else {
+    lwsExpanded.add(id);
+    detail.hidden = false;
+    row.classList.add('expanded');
+    header.setAttribute('aria-expanded', 'true');
+  }
+}
+
+document.getElementById('lakiwinList').addEventListener('click', (e) => {
+  // Check the most specific target first — the status/delete buttons sit
+  // inside the row header, so both would also match a "toggle-row" ancestor.
+  const statusBtn = e.target.closest('button[data-action="toggle-status"]');
+  if (statusBtn) { toggleLakiwinStatus(statusBtn.dataset.id); return; }
+  const delBtn = e.target.closest('button[data-action="delete-site"]');
+  if (delBtn) { deleteLakiwinSite(delBtn.dataset.id); return; }
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (rowHeader) { toggleLwsRow(rowHeader); return; }
+});
+document.getElementById('lakiwinList').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (!rowHeader) return;
+  e.preventDefault();
+  toggleLwsRow(rowHeader);
+});
+document.getElementById('lakiwinList').addEventListener('change', (e) => {
+  const input = e.target.closest('input.edit-field');
+  if (!input) return;
+  const id = input.dataset.id;
+  const field = input.dataset.field;
+  updateLakiwinField(id, field, input.value.trim());
+  input.classList.remove('saved');
+  void input.offsetWidth;
+  input.classList.add('saved');
+});
+
+/* ================= CALENDAR ================= */
+let calViewDate = new Date();
+let calSelectedDate = null;
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function dateKey(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; }
+
+function renderCalendar() {
+  const grid = document.getElementById('calGrid');
+  const label = document.getElementById('calMonthLabel');
+  const year = calViewDate.getFullYear();
+  const month = calViewDate.getMonth();
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  label.textContent = `${monthNames[month]} ${year}`;
+
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = todayStr();
+
+  const tasksByDate = {};
+  tasks.forEach(t => {
+    if (!t.date) return;
+    if (!tasksByDate[t.date]) tasksByDate[t.date] = [];
+    tasksByDate[t.date].push(t);
+  });
+
+  grid.innerHTML = '';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'cal-dow';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  for (let i = 0; i < startWeekday; i++) {
+    const el = document.createElement('div');
+    el.className = 'cal-cell empty';
+    grid.appendChild(el);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = dateKey(year, month, d);
+    const dayTasks = tasksByDate[key] || [];
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell' + (key === todayKey ? ' today' : '');
+    cell.dataset.date = key;
+
+    const numEl = document.createElement('div');
+    numEl.className = 'cal-date-num';
+    numEl.textContent = d;
+    cell.appendChild(numEl);
+
+    if (dayTasks.length > 0) {
+      const dotsEl = document.createElement('div');
+      dotsEl.className = 'cal-dots';
+      dayTasks.slice(0, 6).forEach(t => {
+        const dot = document.createElement('div');
+        dot.className = 'cal-dot ' + (t.status === 'complete' ? 'complete' : 'pending');
+        dotsEl.appendChild(dot);
+      });
+      cell.appendChild(dotsEl);
+
+      const countEl = document.createElement('div');
+      countEl.className = 'cal-count';
+      countEl.textContent = `${dayTasks.length} task${dayTasks.length > 1 ? 's' : ''}`;
+      cell.appendChild(countEl);
+    }
+
+    cell.addEventListener('click', () => openDayPanel(key));
+    grid.appendChild(cell);
+  }
+
+  if (calSelectedDate) openDayPanel(calSelectedDate);
+}
+
+function openDayPanel(dateKeyStr) {
+  calSelectedDate = dateKeyStr;
+  const panel = document.getElementById('calDayPanel');
+  const title = document.getElementById('calDayPanelTitle');
+  const list = document.getElementById('calDayPanelList');
+
+  const [y, m, d] = dateKeyStr.split('-').map(Number);
+  const dateObj = new Date(y, m - 1, d);
+  title.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const dayTasks = tasks.filter(t => t.date === dateKeyStr);
+  list.innerHTML = '';
+
+  if (dayTasks.length === 0) {
+    list.innerHTML = '<div class="cal-empty-day">No tasks scheduled for this day.</div>';
+  } else {
+    dayTasks.forEach(t => {
+      const item = document.createElement('div');
+      item.className = 'cal-day-item';
+      const badgeLabel = t.status === 'complete' ? '✓ Complete' : '⏳ Pending';
+      item.innerHTML = `
+        <div class="cal-day-item-info">
+          <div class="cal-day-item-task">${escapeHtml(t.task)}</div>
+          <div class="cal-day-item-assigned">${escapeHtml(t.assigned)}</div>
+        </div>
+        <button class="status-badge ${t.status}" data-id="${t.id}" data-action="cal-toggle">${badgeLabel}</button>
+      `;
+      list.appendChild(item);
+    });
+  }
+
+  panel.style.display = 'block';
+  applyReadOnlyUI();
+}
+
+document.getElementById('calPrevBtn').addEventListener('click', () => {
+  calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth() - 1, 1);
+  renderCalendar();
+});
+document.getElementById('calNextBtn').addEventListener('click', () => {
+  calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth() + 1, 1);
+  renderCalendar();
+});
+document.getElementById('calTodayBtn').addEventListener('click', () => {
+  calViewDate = new Date();
+  renderCalendar();
+});
+document.getElementById('calDayPanelClose').addEventListener('click', () => {
+  calSelectedDate = null;
+  document.getElementById('calDayPanel').style.display = 'none';
+});
+document.getElementById('calDayPanelList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-action="cal-toggle"]');
+  if (!btn) return;
+  await toggleStatus(btn.dataset.id);
+  renderCalendar();
+});
+
+/* ---------- PASSCODE GATE + INIT ---------- */
+const TEAM_PASSCODE = "RACTSE2026";
+
+async function initApp() {
+  document.getElementById('pinGate').remove();
+  document.getElementById('appRoot').hidden = false;
+  try {
+    setNotice('🟡 Loading data…');
+    await loadAllData();
+    renderAll();
+    subscribeRealtime();
+  } catch (err) {
+    console.error('Failed to load data', err);
+    setNotice('⚠️ Could not connect to the database. Check your connection and reload.', 'error');
+  }
+}
+
+function tryUnlock() {
+  const input = document.getElementById('pinInput');
+  const errorEl = document.getElementById('pinError');
+  if (input.value === TEAM_PASSCODE) {
+    sessionStorage.setItem('tseTrackerUnlocked', '1');
+    initApp();
+  } else {
+    errorEl.hidden = false;
+    input.value = '';
+    input.focus();
+  }
+}
+
+document.getElementById('pinSubmitBtn').addEventListener('click', tryUnlock);
+document.getElementById('pinInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') tryUnlock();
+});
+
+if (sessionStorage.getItem('tseTrackerUnlocked') === '1') {
+  initApp();
+} else {
+  document.getElementById('pinInput').focus();
+}
+</script>
+</body>
+</html>
