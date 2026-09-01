@@ -3141,19 +3141,36 @@ async function tryLogin() {
   const submitBtn = document.getElementById('loginSubmitBtn');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Logging in…';
+
+  /* Only the credential check goes in this try/catch. initApp() (loading
+     data, rendering) is called after we exit it, so a problem there can
+     never get mislabeled as "wrong email or password" — and any real auth
+     error shows Supabase's own message instead of a generic guess, so a
+     recurring bug like this is diagnosable from the screen alone. */
+  let loginOk = false;
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    CURRENT_USER_NAME = data.user.email;
+    CURRENT_USER_NAME = (data && data.user && data.user.email) || email;
     passwordInput.value = '';
-    await initApp();
+    loginOk = true;
   } catch (err) {
     console.error('Login failed', err);
-    errorEl.textContent = 'Incorrect email or password.';
+    errorEl.textContent = (err && err.message) ? err.message : 'Incorrect email or password.';
     errorEl.hidden = false;
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Log In';
+  }
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Log In';
+
+  if (loginOk) {
+    try {
+      await initApp();
+    } catch (err) {
+      console.error('App failed to start after login', err);
+      errorEl.textContent = 'Logged in, but the app failed to load: ' + (err && err.message ? err.message : 'unknown error');
+      errorEl.hidden = false;
+    }
   }
 }
 
