@@ -466,6 +466,11 @@
     background: var(--bg);
     display: flex; align-items: center; justify-content: center;
   }
+  /* The class rule above sets display:flex, which otherwise overrides the
+     browser's own display:none for [hidden] — without this, toggling
+     .hidden = true on a gate (e.g. after a successful login) leaves it
+     visually stuck on screen even though the app underneath is ready. */
+  .pin-gate[hidden] { display: none; }
   .pin-box {
     background: var(--panel);
     border: 1px solid var(--border);
