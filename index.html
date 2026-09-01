@@ -539,6 +539,7 @@
     <button class="tab-btn" data-tab="inventory">Inventory</button>
     <button class="tab-btn" data-tab="anydesk">AnyDesk ID's</button>
     <button class="tab-btn" data-tab="lakiwin">Lakiwin Sites</button>
+    <button class="tab-btn" data-tab="phoneduties">OB Phone Duties</button>
     <button class="tab-btn" data-tab="calendar">Calendar</button>
     <button class="tab-btn" data-tab="activity">Activity Log</button>
   </div>
@@ -1216,6 +1217,81 @@
     </div>
   </div>
 
+  <!-- OB PHONE DUTIES TAB -->
+  <div class="tab-panel" id="tab-phoneduties">
+    <div class="add-card">
+      <div class="add-grid sites-add-grid">
+        <div class="field">
+          <label for="pdMonth">Month</label>
+          <input type="text" id="pdMonth" list="pdMonthOptions" placeholder="e.g. JANUARY">
+          <datalist id="pdMonthOptions">
+            <option value="JANUARY"><option value="FEBRUARY"><option value="MARCH">
+            <option value="APRIL"><option value="MAY"><option value="JUNE">
+            <option value="JULY"><option value="AUGUST"><option value="SEPTEMBER">
+            <option value="OCTOBER"><option value="NOVEMBER"><option value="DECEMBER">
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="pdDateCovered">Date Covered</label>
+          <input type="text" id="pdDateCovered" placeholder="e.g. 01/05/2026 ~ 01/11/2026">
+        </div>
+        <div class="field">
+          <label for="pdOnDuty">On-Duty</label>
+          <input type="text" id="pdOnDuty" placeholder="Name">
+        </div>
+        <div class="field">
+          <label for="pdBackup">Backup</label>
+          <input type="text" id="pdBackup" placeholder="Name">
+        </div>
+        <div class="field">
+          <label for="pdRemarks">Remarks</label>
+          <input type="text" id="pdRemarks" placeholder="Optional remarks">
+        </div>
+        <button id="pdAddBtn">+ Add Entry</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statPdTotal">0</div>
+        <div class="label">Total Weeks</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statPdMonths">0</div>
+        <div class="label">Months</div>
+      </div>
+      <div class="stat pending">
+        <div class="num" id="statPdUnassigned">0</div>
+        <div class="label">Unassigned</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="pdSearchBox" placeholder="Search month, date, on-duty, backup...">
+      <button class="secondary" id="pdRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="pdExportBtn">⬇ Export to Excel</button>
+      <button class="secondary" id="pdImportBtn">⬆ Import from Excel/CSV</button>
+      <input type="file" id="pdImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Date Covered</th>
+            <th>On-Duty</th>
+            <th>Backup</th>
+            <th>Remarks</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="phoneDutiesTableBody">
+          <tr class="empty-row"><td colspan="5">No entries found.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- CALENDAR TAB -->
   <div class="tab-panel" id="tab-calendar">
     <div class="toolbar">
@@ -1281,6 +1357,7 @@ let monitors = [];
 let systemUnits = [];
 let lakiwinSites = [];
 let anydeskIds = [];
+let phoneDuties = [];
 let activityLog = [];
 
 /* Set from the Supabase Auth session once login resolves (see the LOGIN
@@ -1308,7 +1385,8 @@ const ENTITY_TABLE = {
   monitors: 'monitors',
   systemUnits: 'system_units',
   lakiwinSites: 'lakiwin_sites',
-  anydeskIds: 'anydesk_ids'
+  anydeskIds: 'anydesk_ids',
+  phoneDuties: 'phone_duties'
 };
 
 const ENTITY_LABEL = {
@@ -1318,7 +1396,8 @@ const ENTITY_LABEL = {
   monitors: 'Inventory - Monitors',
   systemUnits: 'Inventory - System Units',
   lakiwinSites: 'Lakiwin Sites',
-  anydeskIds: "AnyDesk ID's"
+  anydeskIds: "AnyDesk ID's",
+  phoneDuties: 'OB Phone Duties'
 };
 
 /* Picks a short, human-readable label for a row so the Activity Log
@@ -1333,6 +1412,7 @@ function labelFor(entity, row) {
     case 'systemUnits': return row.terminal || row.serial || '';
     case 'lakiwinSites': return row.siteName || '';
     case 'anydeskIds': return [row.terminal, row.anydeskId ? `(${row.anydeskId})` : ''].filter(Boolean).join(' ');
+    case 'phoneDuties': return [row.dateCovered || '', row.onDuty ? `(${row.onDuty})` : ''].filter(Boolean).join(' ');
     default: return '';
   }
 }
@@ -1346,6 +1426,7 @@ function entityArray(entity) {
     case 'systemUnits': return systemUnits;
     case 'lakiwinSites': return lakiwinSites;
     case 'anydeskIds': return anydeskIds;
+    case 'phoneDuties': return phoneDuties;
     default: return [];
   }
 }
@@ -1370,7 +1451,8 @@ const FIELD_MAP = {
   monitors: { id:'id', branch:'branch', terminal:'terminal', serial:'serial', pagcor:'pagcor', screenSize:'screen_size', brand:'brand', datePurchase:'date_purchase', remarks:'remarks' },
   lakiwinSites: { id:'id', siteName:'site_name', operator:'operator', outletId:'outlet_id', gameOffering:'game_offering', address:'address', dateInstallation:'date_installation', launchingDate:'launching_date', contactPerson:'contact_person', designation:'designation', contactNumber:'contact_number', terminal:'terminal', tablet:'tablet', powerAdapter:'power_adapter', additionalTablet:'additional_tablet', vncInstalled:'vnc_installed', mapLink:'map_link', status:'status', notes:'notes' },
   anydeskIds: { id:'id', site:'site', terminal:'terminal', anydeskId:'anydesk_id', type:'type', remarks:'remarks', hardwareAdd:'hardware_add', urlStatus:'url_status' },
-  systemUnits: { id:'id', branch:'branch', terminal:'terminal', serial:'serial', pagcor:'pagcor', mac:'mac', processor:'processor', storage:'storage', memory:'memory', datePurchase:'date_purchase', anydesk:'anydesk', remarks:'remarks' }
+  systemUnits: { id:'id', branch:'branch', terminal:'terminal', serial:'serial', pagcor:'pagcor', mac:'mac', processor:'processor', storage:'storage', memory:'memory', datePurchase:'date_purchase', anydesk:'anydesk', remarks:'remarks' },
+  phoneDuties: { id:'id', month:'month', dateCovered:'date_covered', onDuty:'on_duty', backup:'backup', remarks:'remarks' }
 };
 
 function toDbRow(entity, row) {
@@ -1466,10 +1548,11 @@ async function loadEntity(entity) {
 }
 
 async function loadAllData() {
-  [tasks, sites, inventory, monitors, systemUnits, lakiwinSites, anydeskIds, activityLog] = await Promise.all([
+  [tasks, sites, inventory, monitors, systemUnits, lakiwinSites, anydeskIds, phoneDuties, activityLog] = await Promise.all([
     loadEntity('tasks'), loadEntity('sites'), loadEntity('inventory'),
     loadEntity('monitors'), loadEntity('systemUnits'),
     loadEntity('lakiwinSites'), loadEntity('anydeskIds'),
+    loadEntity('phoneDuties'),
     loadActivityLog()
   ]);
 }
@@ -1488,12 +1571,13 @@ function renderAll() {
   renderSystemUnits();
   renderAnydeskIds();
   renderLakiwinSites();
+  renderPhoneDuties();
   renderActivityLog();
 }
 
 function subscribeRealtime() {
-  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds' };
-  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds };
+  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', phone_duties:'phoneDuties' };
+  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, phoneDuties: renderPhoneDuties };
   sb.channel('tse-tracker-changes')
     .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
       if (payload.table === 'activity_log') {
@@ -1516,6 +1600,7 @@ function subscribeRealtime() {
         else if (entity === 'systemUnits') systemUnits = rows;
         else if (entity === 'lakiwinSites') lakiwinSites = rows;
         else if (entity === 'anydeskIds') anydeskIds = rows;
+        else if (entity === 'phoneDuties') phoneDuties = rows;
         rendererByEntity[entity]();
       } catch (err) {
         console.error('realtime refresh failed', entity, err);
@@ -3357,6 +3442,211 @@ document.getElementById('lakiwinList').addEventListener('change', (e) => {
   const id = input.dataset.id;
   const field = input.dataset.field;
   updateLakiwinField(id, field, input.value.trim());
+  input.classList.remove('saved');
+  void input.offsetWidth;
+  input.classList.add('saved');
+});
+
+/* ================= OB PHONE DUTIES ================= */
+function exportPhoneDutiesToExcel() {
+  if (phoneDuties.length === 0) { alert('No entries to export yet.'); return; }
+  const rows = phoneDuties.map(p => ({
+    Month: p.month, 'Date Covered': p.dateCovered, 'On-Duty': p.onDuty,
+    Backup: p.backup, Remarks: p.remarks
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 16 }, { wch: 16 }, { wch: 30 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'OB Phone Duties');
+  XLSX.writeFile(wb, `ob_phone_duties_${todayStr()}.xlsx`);
+}
+
+async function addPhoneDuty() {
+  const monthInput = document.getElementById('pdMonth');
+  const dateCoveredInput = document.getElementById('pdDateCovered');
+  const onDutyInput = document.getElementById('pdOnDuty');
+  const backupInput = document.getElementById('pdBackup');
+  const remarksInput = document.getElementById('pdRemarks');
+
+  const dateCovered = dateCoveredInput.value.trim();
+  if (!dateCovered) { dateCoveredInput.focus(); return; }
+
+  const id = 'pd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const newDuty = {
+    id,
+    month: (monthInput.value.trim() || 'Unassigned').toUpperCase(),
+    dateCovered,
+    onDuty: onDutyInput.value.trim(),
+    backup: backupInput.value.trim(),
+    remarks: remarksInput.value.trim()
+  };
+
+  phoneDuties.push(newDuty);
+  renderPhoneDuties();
+  [monthInput, dateCoveredInput, onDutyInput, backupInput, remarksInput].forEach(el => el.value = '');
+
+  const result = await dbInsert('phoneDuties', newDuty);
+  if (!result.ok) {
+    phoneDuties = phoneDuties.filter(p => p.id !== id);
+    renderPhoneDuties();
+  }
+}
+
+async function deletePhoneDuty(id) {
+  if (!confirm('Are you sure you want to delete this entry?')) return;
+  const label = labelFor('phoneDuties', phoneDuties.find(p => p.id === id));
+  const prevDuties = phoneDuties.slice();
+  phoneDuties = phoneDuties.filter(p => p.id !== id);
+  renderPhoneDuties();
+  const result = await dbDelete('phoneDuties', id, label);
+  if (!result.ok) {
+    phoneDuties = prevDuties;
+    renderPhoneDuties();
+  }
+}
+
+async function importPhoneDutiesFromExcel(file) {
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+    const wsName = wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    if (rows.length === 0) {
+      alert('The file appears to be empty.');
+      return;
+    }
+
+    const sample = rows[0];
+    const headerMap = {};
+    Object.keys(sample).forEach(key => {
+      const norm = normalizeHeader(key);
+      if (norm === 'month') headerMap.month = key;
+      else if (norm.includes('datecovered') || norm.includes('weekcovered') || norm === 'date') headerMap.dateCovered = key;
+      else if (norm.includes('on-duty') || norm.includes('onduty') || norm.includes('assigned')) headerMap.onDuty = key;
+      else if (norm.includes('backup') || norm.includes('back-up')) headerMap.backup = key;
+      else if (norm === 'remarks' || norm === 'note' || norm === 'notes') headerMap.remarks = key;
+    });
+
+    if (!headerMap.dateCovered) {
+      alert('Could not find a "Date Covered" column in the file. Please check the headers.');
+      return;
+    }
+
+    const prevDuties = phoneDuties.map(p => ({ ...p }));
+    let currentMonth = '';
+    let addedCount = 0;
+
+    for (const row of rows) {
+      const get = (field) => headerMap[field] ? String(row[headerMap[field]] || '').trim() : '';
+      const monthVal = get('month');
+      if (monthVal) currentMonth = monthVal.toUpperCase();
+      const dateCovered = get('dateCovered');
+      if (!dateCovered) continue;
+      const onDuty = get('onDuty');
+      const backup = get('backup');
+      const remarks = get('remarks');
+
+      const id = 'pd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      phoneDuties.push({ id, month: currentMonth || 'Unassigned', dateCovered, onDuty, backup, remarks });
+      addedCount++;
+    }
+
+    renderPhoneDuties();
+    const result = await dbUpsertAll('phoneDuties', phoneDuties, `${addedCount} added (Excel import)`);
+    if (!result.ok) {
+      phoneDuties = prevDuties;
+      renderPhoneDuties();
+      return;
+    }
+    alert(`Import complete: ${addedCount} entry(ies) added.`);
+  } catch (err) {
+    alert('Failed to import file: ' + err.message);
+  }
+}
+
+function renderPhoneDuties() {
+  const searchTerm = document.getElementById('pdSearchBox').value.trim().toLowerCase();
+  const filtered = phoneDuties.filter(p => {
+    if (!searchTerm) return true;
+    const haystack = [p.month, p.dateCovered, p.onDuty, p.backup, p.remarks].join(' ').toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+
+  document.getElementById('statPdTotal').textContent = phoneDuties.length;
+  document.getElementById('statPdMonths').textContent = new Set(phoneDuties.map(p => p.month)).size;
+  document.getElementById('statPdUnassigned').textContent = phoneDuties.filter(p => (p.onDuty || '').trim() === '').length;
+
+  const tbody = document.getElementById('phoneDutiesTableBody');
+  tbody.innerHTML = '';
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No entries found.</td></tr>';
+    applyReadOnlyUI();
+    return;
+  }
+
+  const months = [];
+  filtered.forEach(p => { if (!months.includes(p.month)) months.push(p.month); });
+
+  months.forEach(month => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'cluster-header';
+    headerRow.innerHTML = `<td colspan="5">${escapeHtml(month || 'Unassigned')}</td>`;
+    tbody.appendChild(headerRow);
+
+    filtered.filter(p => p.month === month).forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="edit-field" data-id="${p.id}" data-field="dateCovered" value="${escapeHtml(p.dateCovered || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${p.id}" data-field="onDuty" value="${escapeHtml(p.onDuty || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${p.id}" data-field="backup" value="${escapeHtml(p.backup || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${p.id}" data-field="remarks" value="${escapeHtml(p.remarks || '')}" placeholder="—"></td>
+        <td><button class="danger" data-id="${p.id}" data-action="delete-duty">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+  applyReadOnlyUI();
+}
+
+async function updatePhoneDutyField(id, field, value) {
+  const duty = phoneDuties.find(p => p.id === id);
+  if (!duty) return;
+  const prevValue = duty[field];
+  duty[field] = value;
+  const result = await dbUpdate('phoneDuties', id, { [field]: value });
+  if (!result.ok) {
+    duty[field] = prevValue;
+    renderPhoneDuties();
+  }
+}
+
+document.getElementById('pdAddBtn').addEventListener('click', addPhoneDuty);
+document.getElementById('pdSearchBox').addEventListener('input', renderPhoneDuties);
+document.getElementById('pdRefreshBtn').addEventListener('click', () => location.reload());
+document.getElementById('pdExportBtn').addEventListener('click', exportPhoneDutiesToExcel);
+document.getElementById('pdImportBtn').addEventListener('click', () => {
+  document.getElementById('pdImportFile').click();
+});
+document.getElementById('pdImportFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  importPhoneDutiesFromExcel(file);
+  e.target.value = '';
+});
+document.getElementById('phoneDutiesTableBody').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action="delete-duty"]');
+  if (!btn) return;
+  deletePhoneDuty(btn.dataset.id);
+});
+document.getElementById('phoneDutiesTableBody').addEventListener('change', (e) => {
+  const input = e.target.closest('input.edit-field');
+  if (!input) return;
+  const id = input.dataset.id;
+  const field = input.dataset.field;
+  updatePhoneDutyField(id, field, input.value.trim());
   input.classList.remove('saved');
   void input.offsetWidth;
   input.classList.add('saved');
