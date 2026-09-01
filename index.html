@@ -507,13 +507,26 @@
   </div>
 </div>
 
+<div id="changePasswordGate" class="pin-gate" hidden>
+  <div class="pin-box">
+    <h2>Change Password</h2>
+    <p>Set a new password for your account.</p>
+    <input type="password" id="newPassword" placeholder="New password" autocomplete="new-password">
+    <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password" style="margin-top:10px;">
+    <button id="changePasswordSubmitBtn" style="margin-top:14px;">Save New Password</button>
+    <button id="changePasswordCancelBtn" class="link-btn" style="display:block; margin:10px auto 0;">Cancel</button>
+    <div id="changePasswordError" class="pin-error" hidden></div>
+    <div id="changePasswordSuccess" class="pin-error" style="color: var(--green);" hidden>Password updated.</div>
+  </div>
+</div>
+
 <div class="container" id="appRoot" hidden>
   <div class="header-row">
     <div>
       <h1>📋 TSE Tracker</h1>
       <div class="subtitle">Shared team tool — visible and editable by everyone with access to this page.</div>
     </div>
-    <div class="user-badge">👤 <strong id="currentUserName">—</strong><button id="logoutBtn" class="link-btn">log out</button></div>
+    <div class="user-badge">👤 <strong id="currentUserName">—</strong><button id="changePasswordBtn" class="link-btn">change password</button><button id="logoutBtn" class="link-btn">log out</button></div>
   </div>
   <div class="notice" id="storageNotice">🟡 Connecting…</div>
 
@@ -3189,11 +3202,74 @@ async function doLogout() {
   showLoginGate();
 }
 
+/* ---------- CHANGE PASSWORD ---------- */
+/* Any logged-in user can set their own new password — Supabase's
+   updateUser() works off the current session, no need to re-enter the
+   old password. There is still no self-service "forgot password" flow;
+   getting locked out means asking whoever manages the Supabase project
+   to reset it from Authentication → Users. */
+function openChangePassword() {
+  document.getElementById('newPassword').value = '';
+  document.getElementById('confirmPassword').value = '';
+  document.getElementById('changePasswordError').hidden = true;
+  document.getElementById('changePasswordSuccess').hidden = true;
+  document.getElementById('changePasswordGate').hidden = false;
+  document.getElementById('newPassword').focus();
+}
+
+function closeChangePassword() {
+  document.getElementById('changePasswordGate').hidden = true;
+}
+
+async function submitChangePassword() {
+  const newPw = document.getElementById('newPassword').value;
+  const confirmPw = document.getElementById('confirmPassword').value;
+  const errorEl = document.getElementById('changePasswordError');
+  const successEl = document.getElementById('changePasswordSuccess');
+  errorEl.hidden = true;
+  successEl.hidden = true;
+
+  if (!newPw || newPw.length < 6) {
+    errorEl.textContent = 'Password must be at least 6 characters.';
+    errorEl.hidden = false;
+    return;
+  }
+  if (newPw !== confirmPw) {
+    errorEl.textContent = 'Passwords do not match.';
+    errorEl.hidden = false;
+    return;
+  }
+
+  const btn = document.getElementById('changePasswordSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    const { error } = await sb.auth.updateUser({ password: newPw });
+    if (error) throw error;
+    successEl.hidden = false;
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+  } catch (err) {
+    console.error('Change password failed', err);
+    errorEl.textContent = (err && err.message) ? err.message : 'Could not update password.';
+    errorEl.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save New Password';
+  }
+}
+
 document.getElementById('loginSubmitBtn').addEventListener('click', tryLogin);
 [document.getElementById('loginEmail'), document.getElementById('loginPassword')].forEach(el => {
   el.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
 });
 document.getElementById('logoutBtn').addEventListener('click', doLogout);
+document.getElementById('changePasswordBtn').addEventListener('click', openChangePassword);
+document.getElementById('changePasswordCancelBtn').addEventListener('click', closeChangePassword);
+document.getElementById('changePasswordSubmitBtn').addEventListener('click', submitChangePassword);
+[document.getElementById('newPassword'), document.getElementById('confirmPassword')].forEach(el => {
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitChangePassword(); });
+});
 
 /* Supabase persists the session in localStorage on its own, so a reload
    (or a new tab) picks the same login back up without asking again. */
