@@ -1561,6 +1561,7 @@ function exportTasksToExcel() {
 }
 
 function renderTasks() {
+  sortTasks();
   const searchTerm = document.getElementById('searchBox').value.trim().toLowerCase();
   const filterVal = document.getElementById('filterStatus').value;
 
