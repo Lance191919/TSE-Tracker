@@ -424,6 +424,14 @@
   .cal-dot.pending { background: var(--amber); }
   .cal-dot.complete { background: var(--green); }
   .cal-count { font-size: 11px; color: var(--muted); margin-top: auto; }
+  .cal-phone-duty {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   .cal-day-panel {
     background: var(--panel);
@@ -449,6 +457,18 @@
   .cal-day-item-task { font-size: 14px; }
   .cal-day-item-assigned { font-size: 12px; color: var(--muted); }
   .cal-empty-day { color: var(--muted); font-size: 13px; text-align: center; padding: 16px 0; }
+  .cal-day-phone-duty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    background: rgba(79,140,255,0.1);
+    border: 1px solid rgba(79,140,255,0.3);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .cal-day-phone-duty strong { color: var(--accent); }
 
   .empty-row td {
     text-align: center;
@@ -3659,6 +3679,40 @@ let calSelectedDate = null;
 function pad2(n) { return String(n).padStart(2, '0'); }
 function dateKey(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; }
 
+/* Parses an OB Phone Duties "MM/DD/YYYY" piece into a local Date (midnight),
+   tolerant of single-digit month/day like "1/03/2027". */
+function parseUSDate(str) {
+  if (!str) return null;
+  const parts = str.trim().split('/');
+  if (parts.length !== 3) return null;
+  const mm = parseInt(parts[0], 10), dd = parseInt(parts[1], 10), yyyy = parseInt(parts[2], 10);
+  if (!mm || !dd || !yyyy) return null;
+  return new Date(yyyy, mm - 1, dd);
+}
+
+/* Parses a "Date Covered" range like "01/05/2026 ~ 01/11/2026" into
+   {start, end} Date objects, or null if the text doesn't look like a range. */
+function parseDateCoveredRange(str) {
+  if (!str) return null;
+  const parts = str.split('~');
+  if (parts.length !== 2) return null;
+  const start = parseUSDate(parts[0]);
+  const end = parseUSDate(parts[1]);
+  if (!start || !end) return null;
+  return { start, end };
+}
+
+/* Finds the OB Phone Duties entry (if any) whose Date Covered range
+   includes the given local Date. */
+function phoneDutyForDate(dateObj) {
+  for (const p of phoneDuties) {
+    const range = parseDateCoveredRange(p.dateCovered);
+    if (!range) continue;
+    if (dateObj >= range.start && dateObj <= range.end) return p;
+  }
+  return null;
+}
+
 function renderCalendar() {
   const grid = document.getElementById('calGrid');
   const label = document.getElementById('calMonthLabel');
@@ -3722,6 +3776,14 @@ function renderCalendar() {
       cell.appendChild(countEl);
     }
 
+    const dutyForDay = phoneDutyForDate(new Date(year, month, d));
+    if (dutyForDay && dutyForDay.onDuty) {
+      const dutyEl = document.createElement('div');
+      dutyEl.className = 'cal-phone-duty';
+      dutyEl.textContent = `📞 ${dutyForDay.onDuty}`;
+      cell.appendChild(dutyEl);
+    }
+
     cell.addEventListener('click', () => openDayPanel(key));
     grid.appendChild(cell);
   }
@@ -3742,8 +3804,20 @@ function openDayPanel(dateKeyStr) {
   const dayTasks = tasks.filter(t => t.date === dateKeyStr);
   list.innerHTML = '';
 
+  const dutyForDay = phoneDutyForDate(dateObj);
+  if (dutyForDay && (dutyForDay.onDuty || dutyForDay.backup)) {
+    const dutyEl = document.createElement('div');
+    dutyEl.className = 'cal-day-phone-duty';
+    dutyEl.innerHTML = `📞 On-Duty: <strong>${escapeHtml(dutyForDay.onDuty || '—')}</strong>` +
+      (dutyForDay.backup ? ` &nbsp;·&nbsp; Backup: <strong>${escapeHtml(dutyForDay.backup)}</strong>` : '');
+    list.appendChild(dutyEl);
+  }
+
   if (dayTasks.length === 0) {
-    list.innerHTML = '<div class="cal-empty-day">No tasks scheduled for this day.</div>';
+    const emptyEl = document.createElement('div');
+    emptyEl.className = 'cal-empty-day';
+    emptyEl.textContent = 'No tasks scheduled for this day.';
+    list.appendChild(emptyEl);
   } else {
     dayTasks.forEach(t => {
       const item = document.createElement('div');
