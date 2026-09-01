@@ -93,14 +93,10 @@
   @media (max-width: 900px) {
     .add-grid { grid-template-columns: 1fr; }
   }
-  .inv-add-grid, .sites-add-grid, .lws-add-grid, .adid-add-grid, .tkt-add-grid {
+  .inv-add-grid, .sites-add-grid, .lws-add-grid, .adid-add-grid {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
-  .inv-add-grid button, .sites-add-grid button, .lws-add-grid button, .adid-add-grid button, .tkt-add-grid button { grid-column: 1 / -1; justify-self: start; }
-  .tkt-add-grid .field.span2 { grid-column: span 2; }
-  @media (max-width: 700px) {
-    .tkt-add-grid .field.span2 { grid-column: span 1; }
-  }
+  .inv-add-grid button, .sites-add-grid button, .lws-add-grid button, .adid-add-grid button { grid-column: 1 / -1; justify-self: start; }
   .field label {
     display: block;
     font-size: 12px;
@@ -347,21 +343,6 @@
   .status-badge.active-status { background: rgba(47,191,113,0.15); color: var(--green); }
   .status-badge.disabled-status { background: rgba(255,92,108,0.15); color: var(--red); }
 
-  .priority-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-  .priority-badge.low { background: rgba(79,140,255,0.15); color: var(--accent); }
-  .priority-badge.medium { background: rgba(245,165,36,0.15); color: var(--amber); }
-  .priority-badge.high { background: rgba(255,92,108,0.15); color: var(--red); }
-  .priority-badge.urgent { background: var(--red); color: #fff; }
-
   .cluster-header {
     background: var(--panel2) !important;
   }
@@ -558,7 +539,6 @@
     <button class="tab-btn" data-tab="inventory">Inventory</button>
     <button class="tab-btn" data-tab="anydesk">AnyDesk ID's</button>
     <button class="tab-btn" data-tab="lakiwin">Lakiwin Sites</button>
-    <button class="tab-btn" data-tab="tickets">Tickets</button>
     <button class="tab-btn" data-tab="calendar">Calendar</button>
     <button class="tab-btn" data-tab="activity">Activity Log</button>
   </div>
@@ -1236,81 +1216,6 @@
     </div>
   </div>
 
-  <!-- TICKETS TAB -->
-  <div class="tab-panel" id="tab-tickets">
-    <div class="add-card">
-      <div class="add-grid tkt-add-grid">
-        <div class="field span2">
-          <label for="tktSubject">Subject</label>
-          <input type="text" id="tktSubject" placeholder="e.g. Tablet not connecting to AnyDesk">
-        </div>
-        <div class="field span2">
-          <label for="tktDescription">Description</label>
-          <input type="text" id="tktDescription" placeholder="Optional details">
-        </div>
-        <div class="field">
-          <label for="tktRequester">Requester / Site</label>
-          <input type="text" id="tktRequester" list="branchOptions" placeholder="e.g. LakiWin - Adriatico">
-        </div>
-        <div class="field">
-          <label for="tktPriority">Priority</label>
-          <select id="tktPriority">
-            <option value="Low">Low</option>
-            <option value="Medium" selected>Medium</option>
-            <option value="High">High</option>
-            <option value="Urgent">Urgent</option>
-          </select>
-        </div>
-        <button id="tktAddBtn">+ Add Ticket</button>
-      </div>
-    </div>
-
-    <div class="summary">
-      <div class="stat pending">
-        <div class="num" id="statTktOpen">0</div>
-        <div class="label">Open</div>
-      </div>
-      <div class="stat complete">
-        <div class="num" id="statTktDone">0</div>
-        <div class="label">Done</div>
-      </div>
-      <div class="stat">
-        <div class="num" id="statTktTotal">0</div>
-        <div class="label">Total</div>
-      </div>
-    </div>
-
-    <div class="toolbar">
-      <input type="text" id="tktSearchBox" placeholder="Search subject, description, requester...">
-      <select id="tktFilterStatus">
-        <option value="all">All Statuses</option>
-        <option value="open">Open only</option>
-        <option value="done">Done only</option>
-      </select>
-      <button class="secondary" id="tktRefreshBtn">🔄 Refresh</button>
-      <button class="secondary" id="tktExportBtn">⬇ Export to Excel</button>
-    </div>
-
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Ticket #</th>
-            <th>Subject</th>
-            <th>Description</th>
-            <th>Requester / Site</th>
-            <th>Priority</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="tktTableBody">
-          <tr class="empty-row"><td colspan="7">No tickets found. Add one above.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
   <!-- CALENDAR TAB -->
   <div class="tab-panel" id="tab-calendar">
     <div class="toolbar">
@@ -1376,7 +1281,6 @@ let monitors = [];
 let systemUnits = [];
 let lakiwinSites = [];
 let anydeskIds = [];
-let tickets = [];
 let activityLog = [];
 
 /* Set from the Supabase Auth session once login resolves (see the LOGIN
@@ -1404,8 +1308,7 @@ const ENTITY_TABLE = {
   monitors: 'monitors',
   systemUnits: 'system_units',
   lakiwinSites: 'lakiwin_sites',
-  anydeskIds: 'anydesk_ids',
-  tickets: 'tickets'
+  anydeskIds: 'anydesk_ids'
 };
 
 const ENTITY_LABEL = {
@@ -1415,8 +1318,7 @@ const ENTITY_LABEL = {
   monitors: 'Inventory - Monitors',
   systemUnits: 'Inventory - System Units',
   lakiwinSites: 'Lakiwin Sites',
-  anydeskIds: "AnyDesk ID's",
-  tickets: 'Tickets'
+  anydeskIds: "AnyDesk ID's"
 };
 
 /* Picks a short, human-readable label for a row so the Activity Log
@@ -1431,7 +1333,6 @@ function labelFor(entity, row) {
     case 'systemUnits': return row.terminal || row.serial || '';
     case 'lakiwinSites': return row.siteName || '';
     case 'anydeskIds': return [row.terminal, row.anydeskId ? `(${row.anydeskId})` : ''].filter(Boolean).join(' ');
-    case 'tickets': return [row.ticketNo ? `#${row.ticketNo}` : '', row.subject || ''].filter(Boolean).join(' ');
     default: return '';
   }
 }
@@ -1445,7 +1346,6 @@ function entityArray(entity) {
     case 'systemUnits': return systemUnits;
     case 'lakiwinSites': return lakiwinSites;
     case 'anydeskIds': return anydeskIds;
-    case 'tickets': return tickets;
     default: return [];
   }
 }
@@ -1470,7 +1370,6 @@ const FIELD_MAP = {
   monitors: { id:'id', branch:'branch', terminal:'terminal', serial:'serial', pagcor:'pagcor', screenSize:'screen_size', brand:'brand', datePurchase:'date_purchase', remarks:'remarks' },
   lakiwinSites: { id:'id', siteName:'site_name', operator:'operator', outletId:'outlet_id', gameOffering:'game_offering', address:'address', dateInstallation:'date_installation', launchingDate:'launching_date', contactPerson:'contact_person', designation:'designation', contactNumber:'contact_number', terminal:'terminal', tablet:'tablet', powerAdapter:'power_adapter', additionalTablet:'additional_tablet', vncInstalled:'vnc_installed', mapLink:'map_link', status:'status', notes:'notes' },
   anydeskIds: { id:'id', site:'site', terminal:'terminal', anydeskId:'anydesk_id', type:'type', remarks:'remarks', hardwareAdd:'hardware_add', urlStatus:'url_status' },
-  tickets: { id:'id', ticketNo:'ticket_no', subject:'subject', description:'description', requester:'requester', priority:'priority', status:'status', createdAt:'created_at' },
   systemUnits: { id:'id', branch:'branch', terminal:'terminal', serial:'serial', pagcor:'pagcor', mac:'mac', processor:'processor', storage:'storage', memory:'memory', datePurchase:'date_purchase', anydesk:'anydesk', remarks:'remarks' }
 };
 
@@ -1567,11 +1466,10 @@ async function loadEntity(entity) {
 }
 
 async function loadAllData() {
-  [tasks, sites, inventory, monitors, systemUnits, lakiwinSites, anydeskIds, tickets, activityLog] = await Promise.all([
+  [tasks, sites, inventory, monitors, systemUnits, lakiwinSites, anydeskIds, activityLog] = await Promise.all([
     loadEntity('tasks'), loadEntity('sites'), loadEntity('inventory'),
     loadEntity('monitors'), loadEntity('systemUnits'),
     loadEntity('lakiwinSites'), loadEntity('anydeskIds'),
-    loadEntity('tickets'),
     loadActivityLog()
   ]);
 }
@@ -1590,13 +1488,12 @@ function renderAll() {
   renderSystemUnits();
   renderAnydeskIds();
   renderLakiwinSites();
-  renderTickets();
   renderActivityLog();
 }
 
 function subscribeRealtime() {
-  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', tickets:'tickets' };
-  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, tickets: renderTickets };
+  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds' };
+  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds };
   sb.channel('tse-tracker-changes')
     .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
       if (payload.table === 'activity_log') {
@@ -1619,7 +1516,6 @@ function subscribeRealtime() {
         else if (entity === 'systemUnits') systemUnits = rows;
         else if (entity === 'lakiwinSites') lakiwinSites = rows;
         else if (entity === 'anydeskIds') anydeskIds = rows;
-        else if (entity === 'tickets') tickets = rows;
         rendererByEntity[entity]();
       } catch (err) {
         console.error('realtime refresh failed', entity, err);
@@ -3464,144 +3360,6 @@ document.getElementById('lakiwinList').addEventListener('change', (e) => {
   input.classList.remove('saved');
   void input.offsetWidth;
   input.classList.add('saved');
-});
-
-/* ================= TICKETS ================= */
-function sortTickets() {
-  tickets.sort((a, b) => {
-    // Open tickets first, then newest first within each status.
-    if (a.status !== b.status) return a.status === 'open' ? -1 : 1;
-    return (b.createdAt || 0) - (a.createdAt || 0);
-  });
-}
-
-async function addTicket() {
-  const subjectInput = document.getElementById('tktSubject');
-  const descriptionInput = document.getElementById('tktDescription');
-  const requesterInput = document.getElementById('tktRequester');
-  const priorityInput = document.getElementById('tktPriority');
-
-  const subject = subjectInput.value.trim();
-  if (!subject) { subjectInput.focus(); return; }
-
-  const description = descriptionInput.value.trim();
-  const requester = requesterInput.value.trim();
-  const priority = priorityInput.value || 'Medium';
-  const id = 'tkt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-  const newTicket = { id, subject, description, requester: requester || '—', priority, status: 'open', createdAt: Date.now() };
-
-  tickets.unshift(newTicket);
-  sortTickets();
-  renderTickets();
-  subjectInput.value = ''; descriptionInput.value = ''; requesterInput.value = ''; priorityInput.value = 'Medium';
-
-  const result = await dbInsert('tickets', newTicket);
-  if (!result.ok) {
-    tickets = tickets.filter(t => t.id !== id);
-    renderTickets();
-  } else {
-    // Pick up the ticket_no the database just generated.
-    try {
-      const rows = await loadEntity('tickets');
-      tickets = rows;
-      renderTickets();
-    } catch (err) {
-      console.error('Failed to refresh tickets after insert', err);
-    }
-  }
-}
-
-async function toggleTicketStatus(id) {
-  const t = tickets.find(x => x.id === id);
-  if (!t) return;
-  const prevStatus = t.status;
-  t.status = t.status === 'open' ? 'done' : 'open';
-  renderTickets();
-  const result = await dbUpdate('tickets', id, { status: t.status });
-  if (!result.ok) {
-    t.status = prevStatus;
-    renderTickets();
-  }
-}
-
-async function deleteTicket(id) {
-  if (!confirm('Are you sure you want to delete this ticket?')) return;
-  const label = labelFor('tickets', tickets.find(t => t.id === id));
-  const prevTickets = tickets.slice();
-  tickets = tickets.filter(t => t.id !== id);
-  renderTickets();
-  const result = await dbDelete('tickets', id, label);
-  if (!result.ok) {
-    tickets = prevTickets;
-    renderTickets();
-  }
-}
-
-function exportTicketsToExcel() {
-  if (tickets.length === 0) { alert('No tickets to export yet.'); return; }
-  const rows = tickets.map(t => ({
-    'Ticket #': t.ticketNo || '', Subject: t.subject, Description: t.description,
-    'Requester / Site': t.requester, Priority: t.priority,
-    Status: t.status === 'done' ? 'Done' : 'Open'
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 10 }, { wch: 32 }, { wch: 40 }, { wch: 24 }, { wch: 10 }, { wch: 10 }];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Tickets');
-  XLSX.writeFile(wb, `tickets_${todayStr()}.xlsx`);
-}
-
-function renderTickets() {
-  sortTickets();
-  const searchTerm = document.getElementById('tktSearchBox').value.trim().toLowerCase();
-  const filterVal = document.getElementById('tktFilterStatus').value;
-
-  const filtered = tickets.filter(t => {
-    if (filterVal !== 'all' && t.status !== filterVal) return false;
-    if (searchTerm && !(t.subject + ' ' + (t.description || '') + ' ' + (t.requester || '')).toLowerCase().includes(searchTerm)) return false;
-    return true;
-  });
-
-  document.getElementById('statTktOpen').textContent = tickets.filter(t => t.status === 'open').length;
-  document.getElementById('statTktDone').textContent = tickets.filter(t => t.status === 'done').length;
-  document.getElementById('statTktTotal').textContent = tickets.length;
-
-  const tbody = document.getElementById('tktTableBody');
-  tbody.innerHTML = '';
-  if (filtered.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No tickets found. Add one above.</td></tr>';
-  } else {
-    filtered.forEach(t => {
-      const tr = document.createElement('tr');
-      const badgeLabel = t.status === 'done' ? '✓ Done' : '⏳ Open';
-      const statusClass = t.status === 'done' ? 'complete' : 'pending';
-      const priorityClass = (t.priority || 'Medium').toLowerCase();
-      tr.innerHTML = `
-        <td>${t.ticketNo ? '#' + t.ticketNo : '—'}</td>
-        <td>${escapeHtml(t.subject)}</td>
-        <td>${escapeHtml(t.description || '')}</td>
-        <td>${escapeHtml(t.requester || '')}</td>
-        <td><span class="priority-badge ${priorityClass}">${escapeHtml(t.priority || 'Medium')}</span></td>
-        <td><button class="status-badge ${statusClass}" data-id="${t.id}" data-action="toggle">${badgeLabel}</button></td>
-        <td><button class="danger" data-id="${t.id}" data-action="delete">Delete</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-  applyReadOnlyUI();
-}
-
-document.getElementById('tktAddBtn').addEventListener('click', addTicket);
-document.getElementById('tktSubject').addEventListener('keypress', (e) => { if (e.key === 'Enter') addTicket(); });
-document.getElementById('tktSearchBox').addEventListener('input', renderTickets);
-document.getElementById('tktFilterStatus').addEventListener('change', renderTickets);
-document.getElementById('tktRefreshBtn').addEventListener('click', () => location.reload());
-document.getElementById('tktExportBtn').addEventListener('click', exportTicketsToExcel);
-document.getElementById('tktTableBody').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-action]');
-  if (!btn) return;
-  if (btn.dataset.action === 'toggle') toggleTicketStatus(btn.dataset.id);
-  if (btn.dataset.action === 'delete') deleteTicket(btn.dataset.id);
 });
 
 /* ================= CALENDAR ================= */
