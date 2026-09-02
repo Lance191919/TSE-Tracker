@@ -513,6 +513,66 @@
   }
   .pin-error { color: var(--red); font-size: 12px; margin-top: 10px; }
   .notice.error { background: rgba(255,92,108,0.12); color: var(--red); border-color: rgba(255,92,108,0.3); }
+
+  /* ---------- COMMUTE GUIDE ---------- */
+  .cmt-origin {
+    display: flex; gap: 14px; align-items: center;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 20px;
+  }
+  .cmt-origin .cmt-dot {
+    flex: none; width: 38px; height: 38px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; text-align: center; line-height: 1.1;
+  }
+  .cmt-origin b { font-size: 14px; }
+  .cmt-origin div.cmt-origin-detail { color: var(--muted); font-size: 12.5px; margin-top: 3px; line-height: 1.5; }
+  .cmt-controls {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 18px;
+  }
+  .cmt-controls input[type="text"] { flex: 1 1 220px; min-width: 180px; }
+  .cmt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cmt-chip {
+    font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel2); color: var(--muted); white-space: nowrap;
+  }
+  .cmt-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cmt-count { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .cmt-region { margin-bottom: 28px; }
+  .cmt-region-head {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 14px;
+  }
+  .cmt-region-head h3 { margin: 0; font-size: 16px; }
+  .cmt-region-head .cmt-n { font-size: 12px; color: var(--muted); }
+  .cmt-region-head .cmt-hub { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .cmt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+  .cmt-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .cmt-card .cmt-head { padding: 14px 16px 10px; }
+  .cmt-card h4 { margin: 0 0 3px; font-size: 14.5px; }
+  .cmt-card .cmt-addr { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+  .cmt-steps { list-style: none; margin: 2px 16px 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .cmt-steps li { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; }
+  .cmt-tag {
+    flex: none; font-size: 9.5px; font-weight: 700; letter-spacing: .02em;
+    padding: 2px 6px; border-radius: 5px; margin-top: 2px; white-space: nowrap;
+  }
+  .cmt-tag.rail { background: rgba(79,140,255,0.15); color: var(--accent); }
+  .cmt-tag.bus { background: rgba(245,165,36,0.15); color: var(--amber); }
+  .cmt-tag.last { background: rgba(47,191,113,0.15); color: var(--green); }
+  .cmt-stub {
+    margin-top: auto; display: flex; border-top: 1px dashed var(--border); background: var(--panel2);
+  }
+  .cmt-stub > div { flex: 1; padding: 9px 16px; }
+  .cmt-stub > div + div { border-left: 1px dashed var(--border); }
+  .cmt-stub .cmt-lbl { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .cmt-stub .cmt-val { font-weight: 700; font-size: 13px; margin-top: 2px; }
+  .cmt-empty { display: none; text-align: center; color: var(--muted); padding: 50px 0; font-size: 13px; }
+  .cmt-footnote { color: var(--muted); font-size: 12px; margin-top: 24px; line-height: 1.6; max-width: 80ch; }
 </style>
 </head>
 <body>
@@ -561,6 +621,7 @@
     <button class="tab-btn" data-tab="lakiwin">Lakiwin Sites</button>
     <button class="tab-btn" data-tab="phoneduties">OB Phone Duties</button>
     <button class="tab-btn" data-tab="calendar">Calendar</button>
+    <button class="tab-btn" data-tab="commute">Commute Guide</button>
     <button class="tab-btn" data-tab="activity">Activity Log</button>
   </div>
 
@@ -1331,6 +1392,30 @@
     </div>
   </div>
 
+  <!-- COMMUTE GUIDE TAB -->
+  <div class="tab-panel" id="tab-commute">
+    <div class="subtitle" style="margin-bottom:14px;">Public-commute directions from the office to every active LakiWin site — MRT/LRT, provincial bus, jeepney and tricycle legs, with approximate fare and travel time.</div>
+
+    <div class="cmt-origin">
+      <div class="cmt-dot">MRT<br>3</div>
+      <div>
+        <b>Starting point — MG Tower II, Shaw Boulevard</b>
+        <div class="cmt-origin-detail">Cor. L. Gonzales St &amp; 29 De Agosto St, Brgy. Hagdan Bato Libis, Mandaluyong City — beside MRT‑3 Shaw Boulevard station.</div>
+      </div>
+    </div>
+
+    <div class="cmt-controls">
+      <input type="text" id="cmtSearchBox" placeholder="Search a site name...">
+      <div class="cmt-chips" id="cmtChips"></div>
+      <div class="cmt-count" id="cmtCount"></div>
+    </div>
+
+    <div id="cmtRegions"></div>
+    <div class="cmt-empty" id="cmtEmpty">No site matches that search.</div>
+
+    <div class="cmt-footnote">Estimates as of September 2026, off‑peak conditions — add 15–30 min during rush hour (7–9am / 5–8pm). Fares are per‑leg and rounded; last‑mile tricycle/habal‑habal fares are negotiated locally. For the Cavite routes via PITX and the North Luzon provincial‑bus routes, confirm same‑day schedules with the terminal or operator before a first‑time trip.</div>
+  </div>
+
   <!-- ACTIVITY LOG TAB -->
   <div class="tab-panel" id="tab-activity">
     <div class="subtitle" style="margin-bottom:14px;">Record of every add, edit, and delete made on this tracker, newest first.</div>
@@ -1694,6 +1779,304 @@ document.getElementById('activityRefreshBtn').addEventListener('click', async ()
 document.getElementById('activitySearchBox').addEventListener('input', renderActivityLog);
 document.getElementById('activityExportBtn').addEventListener('click', exportActivityLogToExcel);
 
+
+/* ================= COMMUTE GUIDE ================= */
+const CMT_REGIONS = [
+  {
+    key:'qc', name:'Quezon City', hub:'via MRT‑3 North Ave / Quezon Ave',
+    sites:[
+      { name:'LakiWin – Berkeley', addr:'Berkeley Square, 869 Commonwealth Ave, Matandang Balara, Diliman', fare:'₱30', time:'50–60 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → North Ave / Quezon Ave (₱16)'],
+        ['bus','Jeep to Philcoa, transfer to a Commonwealth‑bound jeep'],
+        ['last','Alight at Matandang Balara / UP Town Center, on Commonwealth Ave'],
+      ]},
+      { name:'LakiWin – Verde Oro', addr:'Verde Oro Bldg, Matandang Balara, Commonwealth Ave', fare:'₱30', time:'50–60 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → North Ave / Quezon Ave (₱16)'],
+        ['bus','Jeep to Philcoa, transfer to a Commonwealth‑bound jeep'],
+        ['last','Alight on Commonwealth Ave near Verde Oro Bldg'],
+      ]},
+      { name:'LakiWin – Nroxas', addr:'#77 N Roxas St, Sto Domingo, District 1', fare:'₱40–50', time:'60–75 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → North Ave (₱16)'],
+        ['bus','From SM North / Trinoma terminal, Novaliches‑bound van or bus (Quirino Hwy)'],
+        ['last','Alight at Quirino Hwy near N. Roxas St / Susano Rd, tricycle to site'],
+      ]},
+      { name:'LakiWin – Kingspoint', addr:'Lot 13 Blk 260, N Roxas St, Lourdes, District 1', fare:'₱40–50', time:'60–75 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → North Ave (₱16)'],
+        ['bus','From SM North / Trinoma terminal, Novaliches‑bound van or bus (Quirino Hwy)'],
+        ['last','Alight near Kingspoint Subd. on N. Roxas St, short tricycle'],
+      ]},
+      { name:'LakiWin – RMR', addr:'RMR Square, 105 Tandang Sora Ave, Pasong Tamo', fare:'₱29', time:'45–55 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → North Ave (₱16)'],
+        ['bus','Jeep "North Ave–Tandang Sora / Mindanao Ave" straight down Tandang Sora'],
+        ['last','Alight near Pasong Tamo, RMR Square'],
+      ]},
+      { name:'LakiWin – Pwesto', addr:'Pwesto Community Mall, 56 Holy Spirit Drive, Don Antonio', fare:'₱35–45', time:'55–65 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → North Ave / Quezon Ave (₱16)'],
+        ['bus','Jeep to Philcoa, transfer to a Commonwealth‑bound jeep'],
+        ['last','Alight at Don Antonio Ave corner, tricycle down Holy Spirit Drive'],
+      ]},
+      { name:'LakiWin – Royale Place', addr:'Royal Place Mall, Don Antonio Drive, Old Balara', fare:'₱35–45', time:'55–65 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → North Ave / Quezon Ave (₱16)'],
+        ['bus','Jeep to Philcoa, transfer to a Commonwealth‑bound jeep'],
+        ['last','Alight on Don Antonio Drive, Old Balara'],
+      ]},
+      { name:'LakiWin – Libis', addr:'Intrepid Plaza, E. Rodriguez Jr. St, Bagumbayan', fare:'₱28–35', time:'35–45 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Ortigas (1 stop, ₱13)'],
+        ['bus','Jeep/FX from Robinsons Galleria toward Eastwood via Ortigas Ave Ext.–E. Rodriguez Jr.'],
+        ['last','Alight near Bagumbayan / Eastwood, short walk to Intrepid Plaza'],
+      ]},
+    ]
+  },
+  {
+    key:'manila', name:'Manila', hub:'via MRT‑3 Taft Ave → LRT‑1',
+    sites:[
+      { name:'LakiWin – Kalaw', addr:'1005 Maria Orosa St cor. TM Kalaw St, Ermita', fare:'₱36', time:'35–40 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave (₱16)'],
+        ['rail','Cross footbridge, LRT‑1 EDSA → United Nations (₱20)'],
+        ['last','5 min walk to site'],
+      ]},
+      { name:'LakiWin – Adriatico', addr:'Times Bldg, M. Adriatico St, Brgy. 699, Ermita', fare:'₱31', time:'40–45 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave (₱16)'],
+        ['rail','LRT‑1 EDSA → Pedro Gil (₱15)'],
+        ['last','5–7 min walk to Adriatico St'],
+      ]},
+      { name:'LakiWin – España', addr:'Beta Bldg, Josefina St cor. España Blvd', fare:'₱59', time:'75–90 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave (₱16)'],
+        ['rail','LRT‑1 EDSA → Blumentritt (₱30)'],
+        ['bus','Jeep down España Blvd to Josefina St corner (~₱13)'],
+      ]},
+      { name:'LakiWin – Sta Ana', addr:'3367 New Panaderos, Santa Ana', fare:'₱44', time:'55–65 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave (₱16)'],
+        ['rail','LRT‑1 EDSA → Pedro Gil (₱15)'],
+        ['bus','Jeep along Pedro Gil / New Panaderos (~₱13)'],
+      ]},
+      { name:'LakiWin – Tayuman', addr:'Tayuman Commercial Center, cor. Anacleto St, Sta Cruz', fare:'₱46', time:'55–65 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave (₱16)'],
+        ['rail','LRT‑1 EDSA → Tayuman (₱30)'],
+        ['last','5–8 min walk to site'],
+      ]},
+      { name:'LakiWin – Aloha', addr:'Aloha Hotel, Cortabitarte St cor. Roxas Blvd, Malate', fare:'₱31–44', time:'45–55 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave (₱16)'],
+        ['rail','LRT‑1 EDSA → Quirino Ave (₱15)'],
+        ['last','15 min walk, or short tricycle down Roxas Blvd'],
+      ]},
+    ]
+  },
+  {
+    key:'pv', name:'Parañaque & Valenzuela', hub:'via LRT‑1 south / MRT‑3 north',
+    sites:[
+      { name:'LakiWin – Baclaran', addr:'Chateau De Baie Condo, Roxas Blvd cor. Airport Rd', fare:'₱46', time:'55–65 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave (₱16)'],
+        ['rail','LRT‑1 to Baclaran, southern end of the line (₱30)'],
+        ['last','Short walk to site'],
+      ]},
+      { name:'LakiWin – BF Homes', addr:'Greenworld Plaza, Pres. Ave, Teoville Subd, BF Homes', fare:'₱61–64', time:'60–70 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave (₱16)'],
+        ['rail','LRT‑1 to Dr. Santos station, Cavite Extension (₱30–33)'],
+        ['last','Jeep/tricycle to Pres. Ave, BF Homes (~₱15)'],
+      ]},
+      { name:'LakiWin – 88 Square', addr:'88 Square Mall, 668 Quirino Ave', fare:'₱61–64', time:'55–65 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave (₱16)'],
+        ['rail','LRT‑1 to Dr. Santos station, Cavite Extension (₱30–33)'],
+        ['last','Short jeep/tricycle to Quirino Ave (~₱15)'],
+      ]},
+      { name:'LakiWin – Arca', addr:'Arca North Center, 286 McArthur Hwy, Karuhatan, Valenzuela', fare:'₱50–60', time:'70–90 min', steps:[
+        ['rail','MRT‑3 Shaw Blvd → North Ave, end of line (₱16)'],
+        ['bus','Bus / UV Express / jeep along MacArthur Hwy toward Karuhatan (~₱30–40)'],
+        ['last','Alight at Arca North Center'],
+      ]},
+    ]
+  },
+  {
+    key:'cavite', name:'Cavite', hub:'via LRT‑1 → PITX terminal',
+    sites:[
+      { name:'LakiWin – Naic', addr:'Aljebera Bldg, Brgy. San Roque, Naic', fare:'₱120–145', time:'~2.5–3 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave → LRT‑1 to PITX Station (₱30–35)'],
+        ['bus','PITX Gate 6, bus toward Naic/Ternate via Antero Soriano Hwy (₱90–110)'],
+        ['last','Tricycle from town proper to Brgy. San Roque (~₱15–20)'],
+      ]},
+      { name:'LakiWin – General Trias', addr:'Red Ribbon Bldg, Brgy. Bacao, Diversion Rd', fare:'₱110–130', time:'~1.5–2 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave → LRT‑1 to PITX Station (₱30–35)'],
+        ['bus','PITX Gate 1, bus via Governor’s Drive to Gen. Trias/Diversion Rd (₱65–75)'],
+        ['last','Tricycle to Red Ribbon Bldg, Brgy. Bacao'],
+      ]},
+      { name:'LakiWin – Robinson Dasma', addr:'Terraza Dasma AL1, Robinsons Place, Sampaloc 1, Dasmariñas', fare:'₱95–105', time:'~1.5–2.5 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave → LRT‑1 to PITX Station (₱30–35)'],
+        ['bus','PITX City Bus Route 28 (PITX–Dasmariñas), ride to the terminus (₱62–70)'],
+        ['last','Site is beside Robinsons Place — short walk'],
+      ]},
+      { name:'LakiWin – Dasma Coliseum', addr:'Dasma Coliseum, Aguinaldo Hi‑way, Salitran II, Dasmariñas', fare:'₱90–100', time:'~1.5–2.3 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave → LRT‑1 to PITX Station (₱30–35)'],
+        ['bus','PITX Route 28, alight earlier at Salitran stop (₱55–62)'],
+        ['last','Short walk/tricycle to the Coliseum'],
+      ]},
+      { name:'LakiWin – RFC Molino', addr:'RFC Mall, Molino II, Bacoor', fare:'₱85–90', time:'~1.3–1.8 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave → LRT‑1 to PITX Station (₱30–35)'],
+        ['bus','PITX, GMA‑bound bus via Molino Blvd — drop‑off at RFC Mall (₱52)'],
+      ]},
+      { name:'LakiWin – Rosario', addr:'Puregold Bldg, General Trias Drive, Tejeros Convention, Rosario', fare:'₱115–130', time:'~1.7–2.3 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Taft Ave → LRT‑1 to PITX Station (₱30–35)'],
+        ['bus','PITX Gate 1, Governor’s Drive bus toward Rosario/SM Rosario (₱70–81)'],
+        ['last','Tricycle to Puregold Bldg, Tejeros Convention'],
+      ]},
+    ]
+  },
+  {
+    key:'laguna', name:'Laguna', hub:'via Buendia bus terminal',
+    sites:[
+      { name:'LakiWin – Lamesa Bypass', addr:'Infinity Square Bldg, Bucal Bypass Rd, Calamba', fare:'₱132–144', time:'~2–3 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Buendia (₱13–15)'],
+        ['bus','DLTB / Jac Liner / LLI / Jam bus to Calamba Crossing / SM Calamba (₱104)'],
+        ['last','Jeep/tricycle to Bucal Bypass Rd (₱15–25)'],
+      ]},
+      { name:'LakiWin – TReGs Parian', addr:'Yamaha Bldg, Parian, Calamba City', fare:'₱132–144', time:'~2–3 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Buendia (₱13–15)'],
+        ['bus','DLTB / Jac Liner / LLI / Jam bus to Calamba (₱104)'],
+        ['last','Jeep/tricycle to Parian (₱15–25)'],
+      ]},
+      { name:'LakiWin – TReGS Sta. Cruz', addr:'Sunstar Mall, National Road, Brgy. Gatid, Sta. Cruz', fare:'₱240–257', time:'~3.5–4.5 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Buendia (₱13–15)'],
+        ['bus','DLTB / Jac Liner / LLI direct bus to Sta. Cruz terminal (₱212)'],
+        ['last','Tricycle/jeep to Brgy. Gatid (₱15–30)'],
+      ]},
+    ]
+  },
+  {
+    key:'rizal', name:'Rizal', hub:'via EDSA Central Terminal (UV Express)',
+    sites:[
+      { name:'LakiWin – Taytay', addr:'Valley Fair Town Center, Ortigas Extension, Taytay', fare:'₱28–35', time:'30–50 min', steps:[
+        ['last','5–8 min walk to EDSA Central Terminal'],
+        ['bus','UV Express direct to Taytay via Ortigas Ave Extension (₱28)'],
+      ]},
+      { name:'LakiWin – Antipolo', addr:'Sumulong Hwy, Dela Paz, Antipolo City', fare:'₱31–40', time:'40–70 min', steps:[
+        ['last','5–8 min walk to EDSA Central Terminal'],
+        ['bus','UV Express direct to Antipolo via Ortigas Ave Ext. / Sumulong Hwy (₱31)'],
+      ]},
+    ]
+  },
+  {
+    key:'muntinlupa', name:'Muntinlupa', hub:'via Buendia / EDSA Carousel south',
+    sites:[
+      { name:'LakiWin – Estrellita', addr:'Estrellita Bldg II, Tierra Nueva Village, Brgy. Cupang', fare:'₱70–80', time:'~1–1.5 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Buendia (₱13–15)'],
+        ['bus','South‑bound bus/van toward Alabang, alight Cupang/Tunasan (₱40–50)'],
+        ['last','Tricycle to Tierra Nueva Village (₱15)'],
+      ]},
+      { name:'LakiWin – Festival Mall', addr:'Festival Supermall, Corporate Ave, Alabang', fare:'₱55–75', time:'~1–1.3 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Buendia (₱13–15)'],
+        ['bus','SLEX‑bound provincial bus, or EDSA Carousel south, to Alabang (₱40–50)'],
+        ['last','5 min walk/jeep to Festival Supermall'],
+      ]},
+    ]
+  },
+  {
+    key:'north', name:'Tarlac · Pangasinan · Benguet', hub:'via Cubao provincial bus terminals',
+    sites:[
+      { name:'LakiWin – TReGS Tarlac', addr:'EBY Ventures Bldg, Zamora St, San Roque, Tarlac City', fare:'₱410–495', time:'~4.5–5 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Cubao (₱13–15)'],
+        ['bus','Victory Liner / Solid North / Five Star to the Tarlac stop, MacArthur Hwy/SCTEX (₱380–450)'],
+        ['last','Tricycle into the city proper, Zamora St (₱15–30)'],
+      ]},
+      { name:'LakiWin – TReGS Urdaneta', addr:'Cuidad Fernandino Hotel, McArthur Hwy, Poblacion, Urdaneta City', fare:'₱480–535', time:'~5–5.5 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Cubao (₱13–15)'],
+        ['bus','Victory Liner / Solid North / Dagupan Bus to Urdaneta, MacArthur Hwy (₱450–500)'],
+        ['last','Site is on McArthur Hwy — walk or short tricycle (₱15–20)'],
+      ]},
+      { name:'LakiWin – TReGS Tuba', addr:'Valerio’s Placeway, Tuba, Benguet, near Marcos Hwy', fare:'₱520–790', time:'~6.5–7.5 hrs', steps:[
+        ['rail','MRT‑3 Shaw Blvd → Cubao (₱13–15)'],
+        ['bus','Victory Liner to Baguio, via Kennon Rd or Marcos Hwy (₱450–700)'],
+        ['bus','From Baguio’s Kayang St terminal, jeep to Tuba/Asin Rd (₱25)'],
+        ['last','Tricycle/habal‑habal to Valerio’s Placeway (₱30–50)'],
+      ]},
+    ]
+  },
+];
+
+function cmtTagClass(kind){
+  if (kind === 'rail') return 'cmt-tag rail';
+  if (kind === 'bus') return 'cmt-tag bus';
+  return 'cmt-tag last';
+}
+function cmtTagLabel(kind){
+  if (kind === 'rail') return 'RAIL';
+  if (kind === 'bus') return 'BUS';
+  return 'LAST MILE';
+}
+
+const cmtTotalSites = CMT_REGIONS.reduce((n, r) => n + r.sites.length, 0);
+
+function renderCommuteGuide(){
+  const searchEl = document.getElementById('cmtSearchBox');
+  const chipsEl = document.getElementById('cmtChips');
+  const regionsEl = document.getElementById('cmtRegions');
+  const emptyEl = document.getElementById('cmtEmpty');
+  const countEl = document.getElementById('cmtCount');
+  if (!searchEl || !chipsEl || !regionsEl) return;
+
+  const q = searchEl.value.trim().toLowerCase();
+  const activeChip = chipsEl.querySelector('.cmt-chip.active')?.dataset.key || 'all';
+  let shown = 0;
+  regionsEl.innerHTML = '';
+
+  CMT_REGIONS.forEach(region => {
+    if (activeChip !== 'all' && activeChip !== region.key) return;
+    const matches = region.sites.filter(s => !q || s.name.toLowerCase().includes(q) || s.addr.toLowerCase().includes(q));
+    if (!matches.length) return;
+    shown += matches.length;
+
+    const sec = document.createElement('div');
+    sec.className = 'cmt-region';
+    sec.innerHTML = `
+      <div class="cmt-region-head">
+        <h3>${region.name}</h3>
+        <span class="cmt-n">${matches.length} site${matches.length === 1 ? '' : 's'}</span>
+        <span class="cmt-hub">${region.hub}</span>
+      </div>
+      <div class="cmt-grid"></div>
+    `;
+    const grid = sec.querySelector('.cmt-grid');
+    matches.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'cmt-card';
+      card.innerHTML = `
+        <div class="cmt-head">
+          <h4>${s.name}</h4>
+          <div class="cmt-addr">${s.addr}</div>
+        </div>
+        <ul class="cmt-steps">
+          ${s.steps.map(([kind, text]) => `<li><span class="${cmtTagClass(kind)}">${cmtTagLabel(kind)}</span><span>${text}</span></li>`).join('')}
+        </ul>
+        <div class="cmt-stub">
+          <div><div class="cmt-lbl">Fare</div><div class="cmt-val">${s.fare}</div></div>
+          <div><div class="cmt-lbl">Time</div><div class="cmt-val">${s.time}</div></div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+    regionsEl.appendChild(sec);
+  });
+
+  if (emptyEl) emptyEl.style.display = shown ? 'none' : 'block';
+  if (countEl) countEl.textContent = (q || activeChip !== 'all') ? `${shown} of ${cmtTotalSites} sites` : `${cmtTotalSites} sites`;
+}
+
+(function initCommuteGuide(){
+  const chipsEl = document.getElementById('cmtChips');
+  const searchEl = document.getElementById('cmtSearchBox');
+  if (!chipsEl || !searchEl) return;
+
+  const all = [{ key: 'all', name: 'All regions' }, ...CMT_REGIONS.map(r => ({ key: r.key, name: r.name }))];
+  chipsEl.innerHTML = all.map((r, i) => `<span class="cmt-chip${i === 0 ? ' active' : ''}" data-key="${r.key}">${r.name}</span>`).join('');
+  chipsEl.querySelectorAll('.cmt-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      chipsEl.querySelectorAll('.cmt-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      renderCommuteGuide();
+    });
+  });
+  searchEl.addEventListener('input', renderCommuteGuide);
+  renderCommuteGuide();
+})();
 
 /* ---------- TABS ---------- */
 document.querySelectorAll('.tab-btn').forEach(btn => {
