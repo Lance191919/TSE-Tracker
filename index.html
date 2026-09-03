@@ -530,6 +530,10 @@
     text-transform: uppercase; padding: 2px 8px; border-radius: 999px;
     background: rgba(226,178,60,0.15); color: var(--accent); margin-left: 8px;
   }
+  /* The class rule above sets display:inline-block, which otherwise
+     overrides the browser's own display:none for [hidden] — without this,
+     the badge shows for every account regardless of role. */
+  .viewer-badge[hidden] { display: none; }
   body.viewer-mode .add-card { display: none; }
   body.viewer-mode button.danger { display: none; }
   body.viewer-mode .viewer-hide { display: none; }
