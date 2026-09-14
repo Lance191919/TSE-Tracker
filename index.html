@@ -777,6 +777,7 @@
       <button class="grouptab-btn" data-grouptab="inventory">Inventory</button>
       <button class="grouptab-btn" data-grouptab="anydesk">AnyDesk ID's</button>
       <button class="grouptab-btn" data-grouptab="phoneduties">OB Phone Duties</button>
+      <button class="grouptab-btn" data-grouptab="landbased">Landbased Accounts</button>
     </div>
   <!-- SITES TAB -->
   <div class="grouptab-panel active" id="tab-sites">
@@ -1461,6 +1462,106 @@
     </div>
   </div>
 
+
+  <!-- LANDBASED ACCOUNTS TAB -->
+  <div class="grouptab-panel" id="tab-landbased">
+    <div class="add-card">
+      <div class="add-grid adid-add-grid">
+        <div class="field">
+          <label for="lbaSite">Site / Branch</label>
+          <input type="text" id="lbaSite" list="branchOptions" placeholder="e.g. LakiWin-Berkeley">
+        </div>
+        <div class="field">
+          <label for="lbaAccountNo">Account No.</label>
+          <input type="text" id="lbaAccountNo" placeholder="e.g. 1">
+        </div>
+        <div class="field">
+          <label for="lbaUsername">Username</label>
+          <input type="text" id="lbaUsername" placeholder="e.g. brky1sseat01">
+        </div>
+        <div class="field">
+          <label for="lbaMobileNumber">Mobile Number</label>
+          <input type="text" id="lbaMobileNumber" placeholder="Mobile number">
+        </div>
+        <div class="field">
+          <label for="lbaOperator">Operator</label>
+          <input type="text" id="lbaOperator" placeholder="e.g. ICBI">
+        </div>
+        <div class="field">
+          <label for="lbaRemarks">Remarks</label>
+          <input type="text" id="lbaRemarks" placeholder="Optional remarks">
+        </div>
+        <div class="field">
+          <label for="lbaTeam">Team</label>
+          <select id="lbaTeam" class="field-select">
+            <option value="TSE">TSE</option>
+            <option value="GA">GA</option>
+            <option value="AM">AM</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <button id="lbaAddBtn">+ Add Account</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statLbaTotal">0</div>
+        <div class="label">Total Accounts</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statLbaSites">0</div>
+        <div class="label">Sites</div>
+      </div>
+      <div class="stat pending">
+        <div class="num" id="statLbaMissing">0</div>
+        <div class="label">Missing Username</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="lbaSearchBox" placeholder="Search site, username, mobile number, operator...">
+      <select id="lbaTeamFilter">
+        <option value="all">All Teams</option>
+        <option value="TSE">TSE</option>
+        <option value="GA">GA</option>
+        <option value="AM">AM</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+      <button class="secondary" id="lbaRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="lbaExportBtn">⬇ Export to Excel</button>
+      <button class="secondary viewer-hide" id="lbaImportBtn">⬆ Import from Excel/CSV</button>
+      <input type="file" id="lbaImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
+
+    <div class="table-scroll">
+      <table class="compact-table">
+        <colgroup>
+          <col style="width:12%">
+          <col style="width:18%">
+          <col style="width:14%">
+          <col style="width:12%">
+          <col style="width:22%">
+          <col style="width:12%">
+          <col style="width:6%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Account No.</th>
+            <th>Username</th>
+            <th>Mobile Number</th>
+            <th>Operator</th>
+            <th>Remarks</th>
+            <th>Team</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="landbasedTableBody">
+          <tr class="empty-row"><td colspan="7">No accounts found.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
   </div>
 
   <!-- LAKIWIN SITES TAB -->
@@ -1693,6 +1794,7 @@ let anydeskIds = [];
 let phoneDuties = [];
 let activityLog = [];
 let userProfiles = [];
+let landbasedAccounts = [];
 
 /* Set from the Supabase Auth session once login resolves (see the LOGIN
    section near the bottom of this script) — the logged-in user's email. */
@@ -1755,7 +1857,8 @@ const ENTITY_TABLE = {
   lakiwinSites: 'lakiwin_sites',
   anydeskIds: 'anydesk_ids',
   phoneDuties: 'phone_duties',
-  userProfiles: 'user_profiles'
+  userProfiles: 'user_profiles',
+  landbasedAccounts: 'landbased_accounts'
 };
 
 const ENTITY_LABEL = {
@@ -1767,7 +1870,8 @@ const ENTITY_LABEL = {
   lakiwinSites: 'Lakiwin Sites',
   anydeskIds: "AnyDesk ID's",
   phoneDuties: 'OB Phone Duties',
-  userProfiles: 'User Accounts'
+  userProfiles: 'User Accounts',
+  landbasedAccounts: 'Landbased Accounts'
 };
 
 /* Picks a short, human-readable label for a row so the Activity Log
@@ -1784,6 +1888,7 @@ function labelFor(entity, row) {
     case 'anydeskIds': return [row.terminal, row.anydeskId ? `(${row.anydeskId})` : ''].filter(Boolean).join(' ');
     case 'phoneDuties': return [row.dateCovered || '', row.onDuty ? `(${row.onDuty})` : ''].filter(Boolean).join(' ');
     case 'userProfiles': return row.email || '';
+    case 'landbasedAccounts': return [row.site, row.username].filter(Boolean).join(' - ');
     default: return '';
   }
 }
@@ -1799,6 +1904,7 @@ function entityArray(entity) {
     case 'anydeskIds': return anydeskIds;
     case 'phoneDuties': return phoneDuties;
     case 'userProfiles': return userProfiles;
+    case 'landbasedAccounts': return landbasedAccounts;
     default: return [];
   }
 }
@@ -1825,7 +1931,8 @@ const FIELD_MAP = {
   anydeskIds: { id:'id', site:'site', terminal:'terminal', anydeskId:'anydesk_id', type:'type', remarks:'remarks', hardwareAdd:'hardware_add', urlStatus:'url_status', team:'team' },
   systemUnits: { id:'id', branch:'branch', terminal:'terminal', serial:'serial', pagcor:'pagcor', mac:'mac', processor:'processor', storage:'storage', memory:'memory', datePurchase:'date_purchase', anydesk:'anydesk', remarks:'remarks', team:'team' },
   phoneDuties: { id:'id', month:'month', dateCovered:'date_covered', onDuty:'on_duty', backup:'backup', remarks:'remarks', team:'team' },
-  userProfiles: { id:'id', email:'email', role:'role', team:'team' }
+  userProfiles: { id:'id', email:'email', role:'role', team:'team' },
+  landbasedAccounts: { id:'id', site:'site', accountNo:'account_no', username:'username', mobileNumber:'mobile_number', operator:'operator', remarks:'remarks', team:'team' }
 };
 
 const TEAM_OPTIONS = ['TSE', 'GA', 'AM', 'ADMIN'];
@@ -1935,13 +2042,14 @@ async function loadEntity(entity) {
 }
 
 async function loadAllData() {
-  [tasks, sites, inventory, monitors, systemUnits, lakiwinSites, anydeskIds, phoneDuties, activityLog, userProfiles] = await Promise.all([
+  [tasks, sites, inventory, monitors, systemUnits, lakiwinSites, anydeskIds, phoneDuties, activityLog, userProfiles, landbasedAccounts] = await Promise.all([
     loadEntity('tasks'), loadEntity('sites'), loadEntity('inventory'),
     loadEntity('monitors'), loadEntity('systemUnits'),
     loadEntity('lakiwinSites'), loadEntity('anydeskIds'),
     loadEntity('phoneDuties'),
     loadActivityLog(),
-    loadEntity('userProfiles')
+    loadEntity('userProfiles'),
+    loadEntity('landbasedAccounts')
   ]);
 }
 
@@ -1962,11 +2070,12 @@ function renderAll() {
   renderPhoneDuties();
   renderActivityLog();
   renderAdminTab();
+  renderLandbasedAccounts();
 }
 
 function subscribeRealtime() {
-  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', phone_duties:'phoneDuties', user_profiles:'userProfiles' };
-  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, phoneDuties: renderPhoneDuties, userProfiles: renderAdminTab };
+  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', phone_duties:'phoneDuties', user_profiles:'userProfiles', landbased_accounts:'landbasedAccounts' };
+  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, phoneDuties: renderPhoneDuties, userProfiles: renderAdminTab, landbasedAccounts: renderLandbasedAccounts };
   sb.channel('tse-tracker-changes')
     .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
       if (payload.table === 'activity_log') {
@@ -1991,6 +2100,7 @@ function subscribeRealtime() {
         else if (entity === 'anydeskIds') anydeskIds = rows;
         else if (entity === 'phoneDuties') phoneDuties = rows;
         else if (entity === 'userProfiles') userProfiles = rows;
+        else if (entity === 'landbasedAccounts') landbasedAccounts = rows;
         rendererByEntity[entity]();
       } catch (err) {
         console.error('realtime refresh failed', entity, err);
@@ -2650,7 +2760,8 @@ function refreshBranchOptions() {
     ...monitors.map(m => m.branch),
     ...systemUnits.map(u => u.branch),
     ...lakiwinSites.map(s => s.siteName),
-    ...anydeskIds.map(a => a.site)
+    ...anydeskIds.map(a => a.site),
+    ...landbasedAccounts.map(a => a.site)
   ].filter(Boolean));
   const branchList = document.getElementById('branchOptions');
   if (branchList) {
@@ -3866,6 +3977,245 @@ document.getElementById('anydeskTableBody').addEventListener('change', (e) => {
   const id = input.dataset.id;
   const field = input.dataset.field;
   updateAnydeskField(id, field, input.value.trim());
+  input.classList.remove('saved');
+  void input.offsetWidth;
+  input.classList.add('saved');
+});
+
+/* ================= LANDBASED ACCOUNTS ================= */
+function exportLandbasedToExcel() {
+  if (landbasedAccounts.length === 0) { alert('No Landbased accounts to export yet.'); return; }
+  const rows = landbasedAccounts.map(a => ({
+    Site: a.site, 'Account No.': a.accountNo, Username: a.username,
+    'Mobile Number': a.mobileNumber, Operator: a.operator, Remarks: a.remarks
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 22 }, { wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 26 }
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Landbased Accounts');
+  XLSX.writeFile(wb, `landbased_accounts_${todayStr()}.xlsx`);
+}
+
+async function addLandbasedAccount() {
+  const siteInput = document.getElementById('lbaSite');
+  const accountNoInput = document.getElementById('lbaAccountNo');
+  const usernameInput = document.getElementById('lbaUsername');
+  const mobileNumberInput = document.getElementById('lbaMobileNumber');
+  const operatorInput = document.getElementById('lbaOperator');
+  const remarksInput = document.getElementById('lbaRemarks');
+  const teamInput = document.getElementById('lbaTeam');
+
+  const site = siteInput.value.trim();
+  if (!site) { siteInput.focus(); return; }
+
+  const id = 'lba_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const newEntry = {
+    id,
+    site,
+    accountNo: accountNoInput.value.trim(),
+    username: usernameInput.value.trim(),
+    mobileNumber: mobileNumberInput.value.trim(),
+    operator: operatorInput.value.trim(),
+    remarks: remarksInput.value.trim(),
+    team: teamInput.value || 'TSE'
+  };
+
+  landbasedAccounts.push(newEntry);
+  renderLandbasedAccounts();
+  [siteInput, accountNoInput, usernameInput, mobileNumberInput, operatorInput, remarksInput]
+    .forEach(el => el.value = '');
+  teamInput.value = CURRENT_USER_TEAM || 'TSE';
+
+  const result = await dbInsert('landbasedAccounts', newEntry);
+  if (!result.ok) {
+    landbasedAccounts = landbasedAccounts.filter(a => a.id !== id);
+    renderLandbasedAccounts();
+  }
+}
+
+async function deleteLandbasedAccount(id) {
+  if (!confirm('Are you sure you want to delete this entry?')) return;
+  const label = labelFor('landbasedAccounts', landbasedAccounts.find(a => a.id === id));
+  const prevLandbasedAccounts = landbasedAccounts.slice();
+  landbasedAccounts = landbasedAccounts.filter(a => a.id !== id);
+  renderLandbasedAccounts();
+  const result = await dbDelete('landbasedAccounts', id, label);
+  if (!result.ok) {
+    landbasedAccounts = prevLandbasedAccounts;
+    renderLandbasedAccounts();
+  }
+}
+
+async function importLandbasedFromExcel(file) {
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+    const wsName = wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    if (rows.length === 0) {
+      alert('The file appears to be empty.');
+      return;
+    }
+
+    const sample = rows[0];
+    const headerMap = {};
+    Object.keys(sample).forEach(key => {
+      const norm = normalizeHeader(key);
+      if (norm.includes('site') || norm.includes('branch')) headerMap.site = key;
+      else if (norm.includes('accountno') || norm === 'no' || norm === 'account') headerMap.accountNo = key;
+      else if (norm.includes('username')) headerMap.username = key;
+      else if (norm.includes('mobile') || norm.includes('number')) headerMap.mobileNumber = key;
+      else if (norm.includes('operator') || norm.includes('racphilcorp')) headerMap.operator = key;
+      else if (norm === 'remarks' || norm === 'note' || norm === 'notes') headerMap.remarks = key;
+    });
+
+    if (!headerMap.site) {
+      alert('Could not find a "Site" column in the file. Please check the headers.');
+      return;
+    }
+
+    const prevLandbasedAccounts = landbasedAccounts.map(a => ({ ...a }));
+    let updatedCount = 0;
+    let addedCount = 0;
+    let lastOperator = '';
+    // Match existing rows by site + username (entries have no other unique key).
+    const existingByKey = new Map(landbasedAccounts.map(a => [(a.site.trim() + '|' + (a.username || '').trim()).toLowerCase(), a]));
+
+    for (const row of rows) {
+      const site = String(row[headerMap.site] || '').trim();
+      const get = (field) => headerMap[field] ? String(row[headerMap[field]] || '').trim() : '';
+      if (!site) continue;
+      const accountNo = get('accountNo');
+      const username = get('username');
+      const mobileNumber = get('mobileNumber');
+      let operator = get('operator');
+      const remarks = get('remarks');
+      // Operator is only filled on a site's first row in the source sheet; carry it down.
+      if (operator) lastOperator = operator; else operator = lastOperator;
+      const key = (site + '|' + username).toLowerCase();
+
+      if (existingByKey.has(key)) {
+        const a = existingByKey.get(key);
+        a.site = site;
+        if (accountNo) a.accountNo = accountNo;
+        if (mobileNumber) a.mobileNumber = mobileNumber;
+        if (operator) a.operator = operator;
+        if (remarks) a.remarks = remarks;
+        updatedCount++;
+      } else {
+        const id = 'lba_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const newEntry = { id, site, accountNo, username, mobileNumber, operator, remarks };
+        landbasedAccounts.push(newEntry);
+        existingByKey.set(key, newEntry);
+        addedCount++;
+      }
+    }
+
+    renderLandbasedAccounts();
+    const result = await dbUpsertAll('landbasedAccounts', landbasedAccounts, `${addedCount} added, ${updatedCount} updated (Excel import)`);
+    if (!result.ok) {
+      landbasedAccounts = prevLandbasedAccounts;
+      renderLandbasedAccounts();
+      return;
+    }
+    alert(`Import complete: ${updatedCount} entry(ies) updated, ${addedCount} entry(ies) added.`);
+  } catch (err) {
+    alert('Failed to import file: ' + err.message);
+  }
+}
+
+function renderLandbasedAccounts() {
+  const searchTerm = document.getElementById('lbaSearchBox').value.trim().toLowerCase();
+  const teamFilterVal = document.getElementById('lbaTeamFilter').value;
+  const filtered = landbasedAccounts.filter(a => {
+    if (teamFilterVal !== 'all' && (a.team || 'TSE') !== teamFilterVal) return false;
+    if (!searchTerm) return true;
+    const haystack = [a.site, a.username, a.mobileNumber, a.operator, a.remarks].join(' ').toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+
+  document.getElementById('statLbaTotal').textContent = landbasedAccounts.length;
+  document.getElementById('statLbaSites').textContent = new Set(landbasedAccounts.map(a => a.site)).size;
+  document.getElementById('statLbaMissing').textContent = landbasedAccounts.filter(a => (a.username || '').trim() === '').length;
+
+  const tbody = document.getElementById('landbasedTableBody');
+  tbody.innerHTML = '';
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No accounts found.</td></tr>';
+    applyReadOnlyUI();
+    refreshBranchOptions();
+    return;
+  }
+
+  const siteList = [];
+  filtered.forEach(a => { if (!siteList.includes(a.site)) siteList.push(a.site); });
+
+  siteList.forEach(site => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'cluster-header';
+    headerRow.innerHTML = `<td colspan="7">${escapeHtml(site || 'Unassigned')}</td>`;
+    tbody.appendChild(headerRow);
+
+    filtered.filter(a => a.site === site).forEach(a => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="accountNo" value="${escapeHtml(a.accountNo || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="username" value="${escapeHtml(a.username || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="mobileNumber" value="${escapeHtml(a.mobileNumber || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="operator" value="${escapeHtml(a.operator || '')}" placeholder="—"></td>
+        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="remarks" value="${escapeHtml(a.remarks || '')}" placeholder="—"></td>
+        <td>${teamSelectHtml(a.id, a.team)}</td>
+        <td><button class="danger" data-id="${a.id}" data-action="delete-landbased">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+  applyReadOnlyUI();
+  refreshBranchOptions();
+}
+
+async function updateLandbasedField(id, field, value) {
+  const entry = landbasedAccounts.find(a => a.id === id);
+  if (!entry) return;
+  const prevValue = entry[field];
+  entry[field] = value;
+  const result = await dbUpdate('landbasedAccounts', id, { [field]: value });
+  if (!result.ok) {
+    entry[field] = prevValue;
+    renderLandbasedAccounts();
+  }
+}
+
+document.getElementById('lbaAddBtn').addEventListener('click', addLandbasedAccount);
+document.getElementById('lbaTeamFilter').addEventListener('change', renderLandbasedAccounts);
+document.getElementById('lbaSearchBox').addEventListener('input', renderLandbasedAccounts);
+document.getElementById('lbaRefreshBtn').addEventListener('click', () => location.reload());
+document.getElementById('lbaExportBtn').addEventListener('click', exportLandbasedToExcel);
+document.getElementById('lbaImportBtn').addEventListener('click', () => {
+  document.getElementById('lbaImportFile').click();
+});
+document.getElementById('lbaImportFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  importLandbasedFromExcel(file);
+  e.target.value = '';
+});
+document.getElementById('landbasedTableBody').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action="delete-landbased"]');
+  if (!btn) return;
+  deleteLandbasedAccount(btn.dataset.id);
+});
+document.getElementById('landbasedTableBody').addEventListener('change', (e) => {
+  const input = e.target.closest('.edit-field');
+  if (!input) return;
+  const id = input.dataset.id;
+  const field = input.dataset.field;
+  updateLandbasedField(id, field, input.value.trim());
   input.classList.remove('saved');
   void input.offsetWidth;
   input.classList.add('saved');
