@@ -86,6 +86,32 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
+  .grouptabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .grouptab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--muted);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .grouptab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .grouptab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .grouptab-panel { display: none; }
+  .grouptab-panel.active { display: block; }
+
   .add-card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -648,11 +674,8 @@
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="work">Work Tracker</button>
-    <button class="tab-btn" data-tab="sites">PMS Status</button>
-    <button class="tab-btn" data-tab="inventory">Inventory</button>
-    <button class="tab-btn" data-tab="anydesk">AnyDesk ID's</button>
+    <button class="tab-btn" data-tab="tsetools">TSE Tools</button>
     <button class="tab-btn" data-tab="lakiwin">Lakiwin Sites</button>
-    <button class="tab-btn" data-tab="phoneduties">OB Phone Duties</button>
     <button class="tab-btn" data-tab="calendar">Calendar</button>
     <button class="tab-btn" data-tab="commute">Commute Guide</button>
     <button class="tab-btn" data-tab="activity">Activity Log</button>
@@ -747,8 +770,16 @@
     </div>
   </div>
 
+  <!-- TSE TOOLS TAB -->
+  <div class="tab-panel" id="tab-tsetools">
+    <div class="grouptabs">
+      <button class="grouptab-btn active" data-grouptab="sites">PMS Status</button>
+      <button class="grouptab-btn" data-grouptab="inventory">Inventory</button>
+      <button class="grouptab-btn" data-grouptab="anydesk">AnyDesk ID's</button>
+      <button class="grouptab-btn" data-grouptab="phoneduties">OB Phone Duties</button>
+    </div>
   <!-- SITES TAB -->
-  <div class="tab-panel" id="tab-sites">
+  <div class="grouptab-panel active" id="tab-sites">
     <div class="add-card">
       <div class="add-grid sites-add-grid">
         <div class="field">
@@ -842,7 +873,7 @@
   </div>
 
   <!-- INVENTORY TAB -->
-  <div class="tab-panel" id="tab-inventory">
+  <div class="grouptab-panel" id="tab-inventory">
     <div class="subtabs">
       <button class="subtab-btn active" data-subtab="tablets">Tablets</button>
       <button class="subtab-btn" data-subtab="monitors">Monitors</button>
@@ -1229,7 +1260,7 @@
   </div>
 
   <!-- ANYDESK ID'S TAB -->
-  <div class="tab-panel" id="tab-anydesk">
+  <div class="grouptab-panel" id="tab-anydesk">
     <div class="add-card">
       <div class="add-grid adid-add-grid">
         <div class="field">
@@ -1338,6 +1369,100 @@
     </div>
   </div>
 
+  <!-- OB PHONE DUTIES TAB -->
+  <div class="grouptab-panel" id="tab-phoneduties">
+    <div class="add-card">
+      <div class="add-grid sites-add-grid">
+        <div class="field">
+          <label for="pdMonth">Month</label>
+          <input type="text" id="pdMonth" list="pdMonthOptions" placeholder="e.g. JANUARY">
+          <datalist id="pdMonthOptions">
+            <option value="JANUARY"><option value="FEBRUARY"><option value="MARCH">
+            <option value="APRIL"><option value="MAY"><option value="JUNE">
+            <option value="JULY"><option value="AUGUST"><option value="SEPTEMBER">
+            <option value="OCTOBER"><option value="NOVEMBER"><option value="DECEMBER">
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="pdDateCovered">Date Covered</label>
+          <input type="text" id="pdDateCovered" placeholder="e.g. 01/05/2026 ~ 01/11/2026">
+        </div>
+        <div class="field">
+          <label for="pdOnDuty">On-Duty</label>
+          <input type="text" id="pdOnDuty" placeholder="Name">
+        </div>
+        <div class="field">
+          <label for="pdBackup">Backup</label>
+          <input type="text" id="pdBackup" placeholder="Name">
+        </div>
+        <div class="field">
+          <label for="pdRemarks">Remarks</label>
+          <input type="text" id="pdRemarks" placeholder="Optional remarks">
+        </div>
+        <div class="field">
+          <label for="pdTeam">Team</label>
+          <select id="pdTeam" class="field-select">
+            <option value="TSE">TSE</option>
+            <option value="GA">GA</option>
+            <option value="AM">AM</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <button id="pdAddBtn">+ Add Entry</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statPdTotal">0</div>
+        <div class="label">Total Weeks</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statPdMonths">0</div>
+        <div class="label">Months</div>
+      </div>
+      <div class="stat pending">
+        <div class="num" id="statPdUnassigned">0</div>
+        <div class="label">Unassigned</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="pdSearchBox" placeholder="Search month, date, on-duty, backup...">
+      <select id="pdTeamFilter">
+        <option value="all">All Teams</option>
+        <option value="TSE">TSE</option>
+        <option value="GA">GA</option>
+        <option value="AM">AM</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+      <button class="secondary" id="pdRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="pdExportBtn">⬇ Export to Excel</button>
+      <button class="secondary viewer-hide" id="pdImportBtn">⬆ Import from Excel/CSV</button>
+      <input type="file" id="pdImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Date Covered</th>
+            <th>On-Duty</th>
+            <th>Backup</th>
+            <th>Remarks</th>
+            <th>Team</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="phoneDutiesTableBody">
+          <tr class="empty-row"><td colspan="6">No entries found.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  </div>
+
   <!-- LAKIWIN SITES TAB -->
   <div class="tab-panel" id="tab-lakiwin">
     <div class="add-card">
@@ -1442,98 +1567,6 @@
 
     <div class="lws-list" id="lakiwinList">
       <div class="lws-empty">No sites found.</div>
-    </div>
-  </div>
-
-  <!-- OB PHONE DUTIES TAB -->
-  <div class="tab-panel" id="tab-phoneduties">
-    <div class="add-card">
-      <div class="add-grid sites-add-grid">
-        <div class="field">
-          <label for="pdMonth">Month</label>
-          <input type="text" id="pdMonth" list="pdMonthOptions" placeholder="e.g. JANUARY">
-          <datalist id="pdMonthOptions">
-            <option value="JANUARY"><option value="FEBRUARY"><option value="MARCH">
-            <option value="APRIL"><option value="MAY"><option value="JUNE">
-            <option value="JULY"><option value="AUGUST"><option value="SEPTEMBER">
-            <option value="OCTOBER"><option value="NOVEMBER"><option value="DECEMBER">
-          </datalist>
-        </div>
-        <div class="field">
-          <label for="pdDateCovered">Date Covered</label>
-          <input type="text" id="pdDateCovered" placeholder="e.g. 01/05/2026 ~ 01/11/2026">
-        </div>
-        <div class="field">
-          <label for="pdOnDuty">On-Duty</label>
-          <input type="text" id="pdOnDuty" placeholder="Name">
-        </div>
-        <div class="field">
-          <label for="pdBackup">Backup</label>
-          <input type="text" id="pdBackup" placeholder="Name">
-        </div>
-        <div class="field">
-          <label for="pdRemarks">Remarks</label>
-          <input type="text" id="pdRemarks" placeholder="Optional remarks">
-        </div>
-        <div class="field">
-          <label for="pdTeam">Team</label>
-          <select id="pdTeam" class="field-select">
-            <option value="TSE">TSE</option>
-            <option value="GA">GA</option>
-            <option value="AM">AM</option>
-            <option value="ADMIN">ADMIN</option>
-          </select>
-        </div>
-        <button id="pdAddBtn">+ Add Entry</button>
-      </div>
-    </div>
-
-    <div class="summary">
-      <div class="stat">
-        <div class="num" id="statPdTotal">0</div>
-        <div class="label">Total Weeks</div>
-      </div>
-      <div class="stat">
-        <div class="num" id="statPdMonths">0</div>
-        <div class="label">Months</div>
-      </div>
-      <div class="stat pending">
-        <div class="num" id="statPdUnassigned">0</div>
-        <div class="label">Unassigned</div>
-      </div>
-    </div>
-
-    <div class="toolbar">
-      <input type="text" id="pdSearchBox" placeholder="Search month, date, on-duty, backup...">
-      <select id="pdTeamFilter">
-        <option value="all">All Teams</option>
-        <option value="TSE">TSE</option>
-        <option value="GA">GA</option>
-        <option value="AM">AM</option>
-        <option value="ADMIN">ADMIN</option>
-      </select>
-      <button class="secondary" id="pdRefreshBtn">🔄 Refresh</button>
-      <button class="secondary" id="pdExportBtn">⬇ Export to Excel</button>
-      <button class="secondary viewer-hide" id="pdImportBtn">⬆ Import from Excel/CSV</button>
-      <input type="file" id="pdImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
-    </div>
-
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Date Covered</th>
-            <th>On-Duty</th>
-            <th>Backup</th>
-            <th>Remarks</th>
-            <th>Team</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="phoneDutiesTableBody">
-          <tr class="empty-row"><td colspan="6">No entries found.</td></tr>
-        </tbody>
-      </table>
     </div>
   </div>
 
@@ -2380,6 +2413,15 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.grouptab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.grouptab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.grouptab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.grouptab).classList.add('active');
   });
 });
 
