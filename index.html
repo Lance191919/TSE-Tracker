@@ -588,6 +588,12 @@
   body.viewer-mode .viewer-hide { display: none; }
   body.viewer-mode .edit-field { pointer-events: none; opacity: .65; }
   body.viewer-mode .status-badge { pointer-events: none; cursor: default; opacity: .85; }
+  /* Work Tracker, Calendar, and the 3 Inventory sub-tabs are team-scoped:
+     a TSE/GA/AM account only ever has its own team's rows to begin with
+     (enforced server-side by RLS — see add_team_visibility.sql), so the
+     team picker/filter on those tabs is just noise for them and is
+     hidden. An ADMIN-team account still gets the full picker/filter. */
+  body.team-scoped .team-scope-only { display: none !important; }
 
   /* ---------- COMMUTE GUIDE ---------- */
   .cmt-origin {
@@ -721,7 +727,7 @@
           <label for="inputDate">Date</label>
           <input type="date" id="inputDate">
         </div>
-        <div class="field">
+        <div class="field team-scope-only">
           <label for="inputTeam">Team</label>
           <select id="inputTeam" class="field-select">
             <option value="TSE">TSE</option>
@@ -756,7 +762,7 @@
         <option value="pending">Pending only</option>
         <option value="complete">Complete only</option>
       </select>
-      <select id="filterTeam">
+      <select id="filterTeam" class="team-scope-only">
         <option value="all">All Teams</option>
         <option value="TSE">TSE</option>
         <option value="GA">GA</option>
@@ -934,7 +940,7 @@
             <label for="invAlias">Alias</label>
             <input type="text" id="invAlias" placeholder="Optional alias">
           </div>
-          <div class="field">
+          <div class="field team-scope-only">
             <label for="invTeam">Team</label>
             <select id="invTeam" class="field-select">
               <option value="TSE">TSE</option>
@@ -964,7 +970,7 @@
 
       <div class="toolbar">
         <input type="text" id="invSearchBox" placeholder="Search device, serial, branch, alias...">
-        <select id="invTeamFilter">
+        <select id="invTeamFilter" class="team-scope-only">
           <option value="all">All Teams</option>
           <option value="TSE">TSE</option>
           <option value="GA">GA</option>
@@ -1018,7 +1024,7 @@
             <label for="monRemarks">Remarks</label>
             <input type="text" id="monRemarks" placeholder="Optional remarks">
           </div>
-          <div class="field">
+          <div class="field team-scope-only">
             <label for="monTeam">Team</label>
             <select id="monTeam" class="field-select">
               <option value="TSE">TSE</option>
@@ -1048,7 +1054,7 @@
 
       <div class="toolbar">
         <input type="text" id="monSearchBox" placeholder="Search branch, terminal, serial...">
-        <select id="monTeamFilter">
+        <select id="monTeamFilter" class="team-scope-only">
           <option value="all">All Teams</option>
           <option value="TSE">TSE</option>
           <option value="GA">GA</option>
@@ -1114,7 +1120,7 @@
             <label for="suRemarks">Remarks</label>
             <input type="text" id="suRemarks" placeholder="Optional remarks">
           </div>
-          <div class="field">
+          <div class="field team-scope-only">
             <label for="suTeam">Team</label>
             <select id="suTeam" class="field-select">
               <option value="TSE">TSE</option>
@@ -1144,7 +1150,7 @@
 
       <div class="toolbar">
         <input type="text" id="suSearchBox" placeholder="Search branch, terminal, serial, specs...">
-        <select id="suTeamFilter">
+        <select id="suTeamFilter" class="team-scope-only">
           <option value="all">All Teams</option>
           <option value="TSE">TSE</option>
           <option value="GA">GA</option>
@@ -1531,7 +1537,7 @@
       <div id="calMonthLabel" style="font-weight:700; font-size:15px; min-width:160px; text-align:center;"></div>
       <button class="secondary" id="calNextBtn">Next →</button>
       <button class="secondary" id="calTodayBtn">Today</button>
-      <select id="calTeamFilter">
+      <select id="calTeamFilter" class="team-scope-only">
         <option value="all">All Teams</option>
         <option value="TSE">TSE</option>
         <option value="GA">GA</option>
@@ -1666,6 +1672,11 @@ let CURRENT_USER_TEAM = 'TSE';
 let CURRENT_USER_ID = '';
 function isViewer() { return CURRENT_USER_ROLE === 'viewer'; }
 function isAdmin() { return CURRENT_USER_ROLE === 'admin'; }
+/* Team-scoped tabs (Work Tracker, Calendar, Inventory) check the account's
+   TEAM (TSE/GA/AM/ADMIN, set in the Admin tab) rather than its role — an
+   ADMIN-team account sees every team's rows, everyone else only their
+   own. This is separate from isAdmin() above, which is about the role. */
+function isAdminTeam() { return CURRENT_USER_TEAM === 'ADMIN'; }
 async function loadCurrentUserProfile(user) {
   CURRENT_USER_ID = (user && user.id) || '';
   if (user && user.email) CURRENT_USER_NAME = user.email;
@@ -1683,6 +1694,7 @@ async function loadCurrentUserProfile(user) {
 function applyRoleUI() {
   document.body.classList.toggle('viewer-mode', isViewer());
   document.body.classList.toggle('admin-mode', isAdmin());
+  document.body.classList.toggle('team-scoped', !isAdminTeam());
   const adminTabBtn = document.getElementById('adminTabBtn');
   if (adminTabBtn) adminTabBtn.hidden = !isAdmin();
 }
@@ -1796,6 +1808,10 @@ function teamOptionsMarkup(selected) {
 }
 function teamSelectHtml(id, currentTeam) {
   return `<select class="edit-field field-select" data-id="${id}" data-field="team">${teamOptionsMarkup(currentTeam)}</select>`;
+}
+function teamFieldHtml(id, currentTeam) {
+  if (isAdminTeam()) return teamSelectHtml(id, currentTeam);
+  return `<span class="lws-tag">${escapeHtml(currentTeam || CURRENT_USER_TEAM || 'TSE')}</span>`;
 }
 function roleOptionsMarkup(selected) {
   const val = selected || 'editor';
@@ -2501,7 +2517,7 @@ function renderTasks() {
         <td>${escapeHtml(t.task)}</td>
         <td>${escapeHtml(t.assigned)}</td>
         <td>${escapeHtml(t.date)}</td>
-        <td>${teamSelectHtml(t.id, t.team)}</td>
+        <td>${teamFieldHtml(t.id, t.team)}</td>
         <td><button class="status-badge ${t.status}" data-id="${t.id}" data-action="toggle">${badgeLabel}</button></td>
         <td><button class="danger" data-id="${t.id}" data-action="delete">Delete</button></td>
       `;
@@ -2991,7 +3007,8 @@ async function importInventoryFromExcel(file) {
         const id = 'inv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         const newDevice = {
           id, branch: branch || 'Unassigned', deviceName, serial, pagcor, mac, color,
-          deviceType, anydesk, dateDeployed, datePurchase, note, alias
+          deviceType, anydesk, dateDeployed, datePurchase, note, alias,
+          team: (CURRENT_USER_TEAM && CURRENT_USER_TEAM !== 'ADMIN') ? CURRENT_USER_TEAM : 'TSE'
         };
         inventory.push(newDevice);
         existingByName.set(key, newDevice);
@@ -3074,7 +3091,7 @@ function renderInventory() {
             ${lwsField('Alias', d.id + '__alias', 'alias', d.alias)}
             <div class="field">
               <label>Team</label>
-              ${teamSelectHtml(d.id, d.team)}
+              ${teamFieldHtml(d.id, d.team)}
             </div>
           </div>
           <div class="lws-detail-actions">
@@ -3273,7 +3290,10 @@ async function importMonitorsFromExcel(file) {
         updatedCount++;
       } else {
         const id = 'mon_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-        const newMonitor = { id, branch, terminal, serial, pagcor, screenSize, brand, datePurchase, remarks };
+        const newMonitor = {
+          id, branch, terminal, serial, pagcor, screenSize, brand, datePurchase, remarks,
+          team: (CURRENT_USER_TEAM && CURRENT_USER_TEAM !== 'ADMIN') ? CURRENT_USER_TEAM : 'TSE'
+        };
         monitors.push(newMonitor);
         existingByKey.set(key, newMonitor);
         addedCount++;
@@ -3352,7 +3372,7 @@ function renderMonitors() {
             ${lwsField('Remarks', m.id + '__remarks', 'remarks', m.remarks, true)}
             <div class="field">
               <label>Team</label>
-              ${teamSelectHtml(m.id, m.team)}
+              ${teamFieldHtml(m.id, m.team)}
             </div>
           </div>
           <div class="lws-detail-actions">
@@ -3568,7 +3588,10 @@ async function importSystemUnitsFromExcel(file) {
         updatedCount++;
       } else {
         const id = 'su_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-        const newUnit = { id, branch, terminal, serial, pagcor, mac, processor, storage, memory, datePurchase, anydesk, remarks };
+        const newUnit = {
+          id, branch, terminal, serial, pagcor, mac, processor, storage, memory, datePurchase, anydesk, remarks,
+          team: (CURRENT_USER_TEAM && CURRENT_USER_TEAM !== 'ADMIN') ? CURRENT_USER_TEAM : 'TSE'
+        };
         systemUnits.push(newUnit);
         existingByKey.set(key, newUnit);
         addedCount++;
@@ -3650,7 +3673,7 @@ function renderSystemUnits() {
             ${lwsField('Remarks', u.id + '__remarks', 'remarks', u.remarks, true)}
             <div class="field">
               <label>Team</label>
-              ${teamSelectHtml(u.id, u.team)}
+              ${teamFieldHtml(u.id, u.team)}
             </div>
           </div>
           <div class="lws-detail-actions">
