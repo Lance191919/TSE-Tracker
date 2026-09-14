@@ -850,7 +850,7 @@
     <div class="grouptabs">
       <button class="grouptab-btn active" data-grouptab="sites">PMS Status</button>
       <button class="grouptab-btn" data-grouptab="anydesk">AnyDesk ID's</button>
-      <button class="grouptab-btn" data-grouptab="phoneduties">OB Phone Duties</button>
+      <button class="grouptab-btn" id="phoneDutiesGroupTabBtn" data-grouptab="phoneduties">OB Phone Duties</button>
       <button class="grouptab-btn" data-grouptab="landbased">Landbased Accounts</button>
     </div>
   <!-- SITES TAB -->
@@ -1729,6 +1729,13 @@ function isAdmin() { return CURRENT_USER_ROLE === 'admin'; }
    ADMIN-team account sees every team's rows, everyone else only their
    own. This is separate from isAdmin() above, which is about the role. */
 function isAdminTeam() { return CURRENT_USER_TEAM === 'ADMIN'; }
+/* Teams an account can also see/manage on top of its own, because that
+   team's work is under them — currently just AM managing GA. This is
+   one-way: GA does NOT get AM's data back. Extend this map if another
+   team ever needs the same kind of extra visibility. */
+const EXTRA_VISIBLE_TEAMS = { AM: ['GA'] };
+function extraVisibleTeams() { return EXTRA_VISIBLE_TEAMS[CURRENT_USER_TEAM] || []; }
+function hasExpandedTeamAccess() { return isAdminTeam() || extraVisibleTeams().length > 0; }
 async function loadCurrentUserProfile(user) {
   CURRENT_USER_ID = (user && user.id) || '';
   if (user && user.email) CURRENT_USER_NAME = user.email;
@@ -1750,10 +1757,35 @@ async function loadCurrentUserProfile(user) {
    never takes Inventory away from a team that still needs it. */
 const TSE_TOOLS_HIDDEN_TEAMS = ['GA'];
 
+/* Teams that never have OB Phone Duty rotations of their own (only TSE
+   does) — hide just this one subtab of "TSE Tools" for them, leaving PMS
+   Status/AnyDesk ID's/Landbased Accounts visible. GA is included here too
+   even though it already loses the whole "TSE Tools" tab above, so this
+   stays correct on its own if that ever changes. */
+const PHONE_DUTIES_HIDDEN_TEAMS = ['AM', 'GA'];
+
+/* AM's team filter dropdowns (Work Tracker, Calendar, the 3 Inventory
+   sub-tabs) should only offer its own team + GA — not TSE/ADMIN, which it
+   can't actually see — so trim the shared static option list down for it.
+   ADMIN keeps every option; plain TSE/GA accounts never see these selects
+   at all (hidden via .team-scope-only), so nothing to prune for them. */
+function pruneTeamFilterOptionsForExtraAccess() {
+  if (isAdminTeam()) return;
+  const extra = extraVisibleTeams();
+  if (extra.length === 0) return;
+  const allowed = new Set(['all', CURRENT_USER_TEAM, ...extra]);
+  ['filterTeam', 'calTeamFilter', 'invTeamFilter', 'monTeamFilter', 'suTeamFilter'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    Array.from(sel.options).forEach(opt => { if (!allowed.has(opt.value)) opt.remove(); });
+  });
+}
+
 function applyRoleUI() {
   document.body.classList.toggle('viewer-mode', isViewer());
   document.body.classList.toggle('admin-mode', isAdmin());
-  document.body.classList.toggle('team-scoped', !isAdminTeam());
+  document.body.classList.toggle('team-scoped', !hasExpandedTeamAccess());
+  pruneTeamFilterOptionsForExtraAccess();
   const adminTabBtn = document.getElementById('adminTabBtn');
   if (adminTabBtn) adminTabBtn.hidden = !isAdmin();
   const tseToolsTabBtn = document.getElementById('tseToolsTabBtn');
@@ -1771,6 +1803,23 @@ function applyRoleUI() {
       const workPanel = document.getElementById('tab-work');
       if (workBtn) workBtn.classList.add('active');
       if (workPanel) workPanel.classList.add('active');
+    }
+  }
+  const phoneDutiesGroupTabBtn = document.getElementById('phoneDutiesGroupTabBtn');
+  if (phoneDutiesGroupTabBtn) {
+    const hidePd = PHONE_DUTIES_HIDDEN_TEAMS.includes(CURRENT_USER_TEAM);
+    phoneDutiesGroupTabBtn.hidden = hidePd;
+    // Same fallback idea, one level down: if OB Phone Duties happened to
+    // be the active grouptab, switch to PMS Status instead of leaving an
+    // empty/hidden subtab selected.
+    const phoneDutiesPanel = document.getElementById('tab-phoneduties');
+    if (hidePd && phoneDutiesPanel && phoneDutiesPanel.classList.contains('active')) {
+      phoneDutiesPanel.classList.remove('active');
+      phoneDutiesGroupTabBtn.classList.remove('active');
+      const sitesBtn = document.querySelector('.grouptab-btn[data-grouptab="sites"]');
+      const sitesPanel = document.getElementById('tab-sites');
+      if (sitesBtn) sitesBtn.classList.add('active');
+      if (sitesPanel) sitesPanel.classList.add('active');
     }
   }
 }
@@ -1886,7 +1935,7 @@ function teamSelectHtml(id, currentTeam) {
   return `<select class="edit-field field-select" data-id="${id}" data-field="team">${teamOptionsMarkup(currentTeam)}</select>`;
 }
 function teamFieldHtml(id, currentTeam) {
-  if (isAdminTeam()) return teamSelectHtml(id, currentTeam);
+  if (hasExpandedTeamAccess()) return teamSelectHtml(id, currentTeam);
   return `<span class="lws-tag">${escapeHtml(currentTeam || CURRENT_USER_TEAM || 'TSE')}</span>`;
 }
 function roleOptionsMarkup(selected) {
@@ -5118,22 +5167,36 @@ function parseDateCoveredRange(str) {
   return { start, end };
 }
 
-/* The Team filter select is hidden for non-ADMIN-team accounts (see
-   .team-scope-only), so its DOM value can't be trusted for them — always
-   scope those accounts to their own team instead. An ADMIN-team account
-   keeps using whatever the visible dropdown is set to. */
-function effectiveCalTeamFilter() {
-  if (!isAdminTeam()) return CURRENT_USER_TEAM || 'TSE';
+/* Whether a Calendar-adjacent row (a task or an OB Phone Duty entry)
+   tagged `rowTeam` should be visible to the current account, given the
+   (possibly hidden) Team filter select. TSE/GA accounts are always locked
+   to their own team here regardless of the select's value, because
+   phone_duties isn't RLS-restricted like tasks/inventory are — this is
+   the only thing standing between GA and seeing TSE's on-duty schedule.
+   AM additionally sees GA (its own extra visibility); ADMIN sees whatever
+   the select is set to. */
+function calendarTeamMatches(rowTeam) {
+  const team = rowTeam || 'TSE';
   const filterEl = document.getElementById('calTeamFilter');
-  return filterEl ? filterEl.value : 'all';
+  const filterVal = filterEl ? filterEl.value : 'all';
+  if (isAdminTeam()) return filterVal === 'all' || team === filterVal;
+  const extra = extraVisibleTeams();
+  if (extra.length > 0) {
+    const allowed = new Set([CURRENT_USER_TEAM, ...extra]);
+    if (filterVal === 'all') return allowed.has(team);
+    if (allowed.has(filterVal)) return team === filterVal;
+    // stale/unreachable selection (e.g. a leftover TSE value) — fail safe
+    // to just the account's own team rather than trust it.
+    return team === CURRENT_USER_TEAM;
+  }
+  return team === (CURRENT_USER_TEAM || 'TSE');
 }
 
 /* Finds the OB Phone Duties entry (if any) whose Date Covered range
    includes the given local Date. */
 function phoneDutyForDate(dateObj) {
-  const teamFilterVal = effectiveCalTeamFilter();
   for (const p of phoneDuties) {
-    if (teamFilterVal !== 'all' && (p.team || 'TSE') !== teamFilterVal) continue;
+    if (!calendarTeamMatches(p.team)) continue;
     const range = parseDateCoveredRange(p.dateCovered);
     if (!range) continue;
     if (dateObj >= range.start && dateObj <= range.end) return p;
@@ -5155,11 +5218,10 @@ function renderCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayKey = todayStr();
 
-  const calTeamFilterVal = effectiveCalTeamFilter();
   const tasksByDate = {};
   tasks.forEach(t => {
     if (!t.date) return;
-    if (calTeamFilterVal !== 'all' && (t.team || 'TSE') !== calTeamFilterVal) return;
+    if (!calendarTeamMatches(t.team)) return;
     if (!tasksByDate[t.date]) tasksByDate[t.date] = [];
     tasksByDate[t.date].push(t);
   });
@@ -5231,8 +5293,7 @@ function openDayPanel(dateKeyStr) {
   const dateObj = new Date(y, m - 1, d);
   title.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  const calTeamFilterVal = effectiveCalTeamFilter();
-  const dayTasks = tasks.filter(t => t.date === dateKeyStr && (calTeamFilterVal === 'all' || (t.team || 'TSE') === calTeamFilterVal));
+  const dayTasks = tasks.filter(t => t.date === dateKeyStr && calendarTeamMatches(t.team));
   list.innerHTML = '';
 
   const dutyForDay = phoneDutyForDate(dateObj);
