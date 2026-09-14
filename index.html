@@ -378,6 +378,22 @@
   .status-badge.complete { background: rgba(79,191,122,0.15); color: var(--green); }
   .status-badge.active-status { background: rgba(79,191,122,0.15); color: var(--green); }
   .status-badge.disabled-status { background: rgba(239,91,96,0.15); color: var(--red); }
+  .status-badge.neutral { background: var(--panel2); color: var(--muted); border: 1px solid var(--border); }
+  .status-badge.display-only { cursor: default; }
+  .lws-group-header {
+    padding: 10px 6px 4px;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .lws-group-header:first-child { padding-top: 0; }
+  .lws-static-value {
+    padding: 6px 8px;
+    color: var(--muted);
+    font-size: 13px;
+  }
 
   .cluster-header {
     background: var(--panel2) !important;
@@ -853,23 +869,8 @@
       <input type="file" id="siteImportFile" accept=".xlsx,.xls" style="display:none;">
     </div>
 
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Site Name</th>
-            <th>TSE</th>
-            <th>Operation Hours</th>
-            <th>Schedule Date</th>
-            <th>Date Done</th>
-            <th>Mark</th>
-            <th>Team</th>
-          </tr>
-        </thead>
-        <tbody id="sitesTableBody">
-          <tr class="empty-row"><td colspan="7">No sites found.</td></tr>
-        </tbody>
-      </table>
+    <div class="lws-list" id="sitesTableBody">
+      <div class="lws-empty">No sites found.</div>
     </div>
   </div>
 
@@ -976,44 +977,8 @@
         <input type="file" id="invImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
       </div>
 
-      <div class="table-scroll">
-        <table class="compact-table">
-          <colgroup>
-            <col style="width:9%">
-            <col style="width:10%">
-            <col style="width:7%">
-            <col style="width:10%">
-            <col style="width:5%">
-            <col style="width:13%">
-            <col style="width:6%">
-            <col style="width:6%">
-            <col style="width:6%">
-            <col style="width:8%">
-            <col style="width:5%">
-            <col style="width:6%">
-            <col style="width:6%">
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Device Name</th>
-              <th>Serial Number</th>
-              <th>Pagcor Tag</th>
-              <th>MAC Address</th>
-              <th>Color</th>
-              <th>Product / Model / Specs</th>
-              <th>Anydesk ID</th>
-              <th>Date Deployed</th>
-              <th>Date Purchased</th>
-              <th>Note</th>
-              <th>Alias</th>
-              <th>Team</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="inventoryTableBody">
-            <tr class="empty-row"><td colspan="13">No devices found.</td></tr>
-          </tbody>
-        </table>
+      <div class="lws-list" id="inventoryTableBody">
+        <div class="lws-empty">No devices found.</div>
       </div>
     </div>
 
@@ -1096,36 +1061,8 @@
         <input type="file" id="monImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
       </div>
 
-      <div class="table-scroll">
-        <table class="compact-table">
-          <colgroup>
-            <col style="width:13%">
-            <col style="width:13%">
-            <col style="width:9%">
-            <col style="width:13%">
-            <col style="width:9%">
-            <col style="width:13%">
-            <col style="width:14%">
-            <col style="width:8%">
-            <col style="width:8%">
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Terminal No.</th>
-              <th>Serial Number</th>
-              <th>Pagcor Tag</th>
-              <th>Screen Size</th>
-              <th>Brand</th>
-              <th>Date of Purchase</th>
-              <th>Remarks</th>
-              <th>Team</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="monitorsTableBody">
-            <tr class="empty-row"><td colspan="9">No monitors found.</td></tr>
-          </tbody>
-        </table>
+      <div class="lws-list" id="monitorsTableBody">
+        <div class="lws-empty">No monitors found.</div>
       </div>
     </div>
 
@@ -1220,42 +1157,8 @@
         <input type="file" id="suImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
       </div>
 
-      <div class="table-scroll">
-        <table class="compact-table">
-          <colgroup>
-            <col style="width:9%">
-            <col style="width:11%">
-            <col style="width:6%">
-            <col style="width:11%">
-            <col style="width:10%">
-            <col style="width:12%">
-            <col style="width:10%">
-            <col style="width:7%">
-            <col style="width:7%">
-            <col style="width:11%">
-            <col style="width:5%">
-            <col style="width:6%">
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Terminal No.</th>
-              <th>Serial Number</th>
-              <th>Pagcor Tag</th>
-              <th>MAC Address</th>
-              <th>Processor</th>
-              <th>Storage</th>
-              <th>Memory</th>
-              <th>Date Purchased</th>
-              <th>Anydesk ID</th>
-              <th>Remarks</th>
-              <th>Team</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="systemUnitTableBody">
-            <tr class="empty-row"><td colspan="12">No system units found.</td></tr>
-          </tbody>
-        </table>
+      <div class="lws-list" id="systemUnitTableBody">
+        <div class="lws-empty">No system units found.</div>
       </div>
     </div>
   </div>
@@ -1339,34 +1242,8 @@
       <input type="file" id="adidImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
     </div>
 
-    <div class="table-scroll">
-      <table class="compact-table">
-        <colgroup>
-          <col style="width:13%">
-          <col style="width:13%">
-          <col style="width:9%">
-          <col style="width:18%">
-          <col style="width:14%">
-          <col style="width:18%">
-          <col style="width:9%">
-          <col style="width:6%">
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Terminal / Device</th>
-            <th>Anydesk ID</th>
-            <th>Type</th>
-            <th>Remarks</th>
-            <th>Hardware Add</th>
-            <th>URL Status</th>
-            <th>Team</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="anydeskTableBody">
-          <tr class="empty-row"><td colspan="8">No entries found.</td></tr>
-        </tbody>
-      </table>
+    <div class="lws-list" id="anydeskTableBody">
+      <div class="lws-empty">No entries found.</div>
     </div>
   </div>
 
@@ -1534,32 +1411,8 @@
       <input type="file" id="lbaImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
     </div>
 
-    <div class="table-scroll">
-      <table class="compact-table">
-        <colgroup>
-          <col style="width:12%">
-          <col style="width:18%">
-          <col style="width:14%">
-          <col style="width:12%">
-          <col style="width:22%">
-          <col style="width:12%">
-          <col style="width:6%">
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Account No.</th>
-            <th>Username</th>
-            <th>Mobile Number</th>
-            <th>Operator</th>
-            <th>Remarks</th>
-            <th>Team</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="landbasedTableBody">
-          <tr class="empty-row"><td colspan="7">No accounts found.</td></tr>
-        </tbody>
-      </table>
+    <div class="lws-list" id="landbasedTableBody">
+      <div class="lws-empty">No accounts found.</div>
     </div>
   </div>
   </div>
@@ -2856,6 +2709,9 @@ async function importSitesFromExcel(file) {
   }
 }
 
+// ids of PMS Status rows whose detail panel is currently open
+let sitesExpanded = new Set();
+
 function renderSites() {
   const teamFilterVal = document.getElementById('siteTeamFilter').value;
   const filtered = teamFilterVal === 'all' ? sites : sites.filter(s => (s.team || 'TSE') === teamFilterVal);
@@ -2864,11 +2720,11 @@ function renderSites() {
   document.getElementById('statClusterTotal').textContent = new Set(sites.map(s => s.cluster)).size;
   document.getElementById('statMarkDone').textContent = sites.filter(s => (s.mark || '').toUpperCase().startsWith('DONE')).length;
 
-  const tbody = document.getElementById('sitesTableBody');
-  tbody.innerHTML = '';
+  const list = document.getElementById('sitesTableBody');
+  list.innerHTML = '';
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No sites found.</td></tr>';
+    list.innerHTML = '<div class="lws-empty">No sites found.</div>';
     applyReadOnlyUI();
     refreshBranchOptions();
     return;
@@ -2878,23 +2734,45 @@ function renderSites() {
   filtered.forEach(s => { if (!clusters.includes(s.cluster)) clusters.push(s.cluster); });
 
   clusters.forEach(cluster => {
-    const headerRow = document.createElement('tr');
-    headerRow.className = 'cluster-header';
-    headerRow.innerHTML = `<td colspan="7">${escapeHtml(cluster)}</td>`;
-    tbody.appendChild(headerRow);
+    const groupHeader = document.createElement('div');
+    groupHeader.className = 'lws-group-header';
+    groupHeader.textContent = cluster || 'Unassigned';
+    list.appendChild(groupHeader);
 
     filtered.filter(s => s.cluster === cluster).forEach(s => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${escapeHtml(s.name)}</td>
-        <td><input type="text" class="edit-field" data-id="${s.id}" data-field="tse" value="${escapeHtml(s.tse || '')}" placeholder="—"></td>
-        <td>${escapeHtml(s.hours) || '—'}</td>
-        <td><input type="text" class="edit-field" data-id="${s.id}" data-field="sched" value="${escapeHtml(s.sched)}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${s.id}" data-field="datedone" value="${escapeHtml(s.datedone)}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${s.id}" data-field="mark" value="${escapeHtml(s.mark || '')}" placeholder="—"></td>
-        <td>${teamSelectHtml(s.id, s.team)}</td>
+      const isOpen = sitesExpanded.has(s.id);
+      const row = document.createElement('div');
+      row.className = 'lws-row' + (isOpen ? ' expanded' : '');
+      row.dataset.id = s.id;
+      row.innerHTML = `
+        <div class="lws-row-header" data-id="${s.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
+          <span class="lws-name">${escapeHtml(s.name)}</span>
+          ${s.cluster ? `<span class="lws-tag">${escapeHtml(s.cluster)}</span>` : ''}
+          ${doneStatusBadgeHtml(s.mark, 'Pending')}
+          <span class="lws-chevron">▾</span>
+        </div>
+        <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
+          <div class="lws-detail-grid">
+            <div class="field span2">
+              <label>Site Name</label>
+              <div class="lws-static-value">${escapeHtml(s.name || '—')}</div>
+            </div>
+            ${lwsField('TSE', s.id + '__tse', 'tse', s.tse)}
+            <div class="field">
+              <label>Operation Hours</label>
+              <div class="lws-static-value">${escapeHtml(s.hours || '—')}</div>
+            </div>
+            ${lwsField('Schedule Date', s.id + '__sched', 'sched', s.sched)}
+            ${lwsField('Date Done', s.id + '__datedone', 'datedone', s.datedone)}
+            ${lwsField('Mark', s.id + '__mark', 'mark', s.mark)}
+            <div class="field">
+              <label>Team</label>
+              ${teamSelectHtml(s.id, s.team)}
+            </div>
+          </div>
+        </div>
       `;
-      tbody.appendChild(tr);
+      list.appendChild(row);
     });
   });
   applyReadOnlyUI();
@@ -2925,6 +2803,17 @@ document.getElementById('siteImportFile').addEventListener('change', (e) => {
   if (!file) return;
   importSitesFromExcel(file);
   e.target.value = '';
+});
+document.getElementById('sitesTableBody').addEventListener('click', (e) => {
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (rowHeader) { toggleAccordionRow(rowHeader, sitesExpanded); return; }
+});
+document.getElementById('sitesTableBody').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (!rowHeader) return;
+  e.preventDefault();
+  toggleAccordionRow(rowHeader, sitesExpanded);
 });
 document.getElementById('sitesTableBody').addEventListener('change', (e) => {
   const input = e.target.closest('.edit-field');
@@ -3123,6 +3012,9 @@ async function importInventoryFromExcel(file) {
   }
 }
 
+// ids of Inventory (Tablets) rows whose detail panel is currently open
+let invExpanded = new Set();
+
 function renderInventory() {
   const searchTerm = document.getElementById('invSearchBox').value.trim().toLowerCase();
   const teamFilterVal = document.getElementById('invTeamFilter').value;
@@ -3137,11 +3029,11 @@ function renderInventory() {
   document.getElementById('statInvBranches').textContent = new Set(inventory.map(d => d.branch)).size;
   document.getElementById('statInvFlagged').textContent = inventory.filter(d => (d.note || '').trim() !== '').length;
 
-  const tbody = document.getElementById('inventoryTableBody');
-  tbody.innerHTML = '';
+  const list = document.getElementById('inventoryTableBody');
+  list.innerHTML = '';
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="13">No devices found.</td></tr>';
+    list.innerHTML = '<div class="lws-empty">No devices found.</div>';
     applyReadOnlyUI();
     refreshBranchOptions();
     return;
@@ -3151,29 +3043,46 @@ function renderInventory() {
   filtered.forEach(d => { if (!branches.includes(d.branch)) branches.push(d.branch); });
 
   branches.forEach(branch => {
-    const headerRow = document.createElement('tr');
-    headerRow.className = 'cluster-header';
-    headerRow.innerHTML = `<td colspan="13">${escapeHtml(branch || 'Unassigned')}</td>`;
-    tbody.appendChild(headerRow);
+    const groupHeader = document.createElement('div');
+    groupHeader.className = 'lws-group-header';
+    groupHeader.textContent = branch || 'Unassigned';
+    list.appendChild(groupHeader);
 
     filtered.filter(d => d.branch === branch).forEach(d => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="deviceName" value="${escapeHtml(d.deviceName)}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="serial" value="${escapeHtml(d.serial || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="pagcor" value="${escapeHtml(d.pagcor || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="mac" value="${escapeHtml(d.mac || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="color" value="${escapeHtml(d.color || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="deviceType" value="${escapeHtml(d.deviceType || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="anydesk" value="${escapeHtml(d.anydesk || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="dateDeployed" value="${escapeHtml(d.dateDeployed || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="datePurchase" value="${escapeHtml(d.datePurchase || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="note" value="${escapeHtml(d.note || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${d.id}" data-field="alias" value="${escapeHtml(d.alias || '')}" placeholder="—"></td>
-        <td>${teamSelectHtml(d.id, d.team)}</td>
-        <td><button class="danger" data-id="${d.id}" data-action="delete-device">Delete</button></td>
+      const isOpen = invExpanded.has(d.id);
+      const row = document.createElement('div');
+      row.className = 'lws-row' + (isOpen ? ' expanded' : '');
+      row.dataset.id = d.id;
+      row.innerHTML = `
+        <div class="lws-row-header" data-id="${d.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
+          <span class="lws-name">${escapeHtml(d.deviceName)}</span>
+          ${d.deviceType ? `<span class="lws-tag">${escapeHtml(d.deviceType)}</span>` : ''}
+          <span class="lws-chevron">▾</span>
+        </div>
+        <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
+          <div class="lws-detail-grid">
+            ${lwsField('Device Name', d.id + '__deviceName', 'deviceName', d.deviceName, true)}
+            ${lwsField('Serial Number', d.id + '__serial', 'serial', d.serial)}
+            ${lwsField('Pagcor Tag', d.id + '__pagcor', 'pagcor', d.pagcor)}
+            ${lwsField('MAC Address', d.id + '__mac', 'mac', d.mac)}
+            ${lwsField('Color', d.id + '__color', 'color', d.color)}
+            ${lwsField('Product / Model / Specs', d.id + '__deviceType', 'deviceType', d.deviceType)}
+            ${lwsField('Anydesk ID', d.id + '__anydesk', 'anydesk', d.anydesk)}
+            ${lwsField('Date Deployed', d.id + '__dateDeployed', 'dateDeployed', d.dateDeployed)}
+            ${lwsField('Date Purchased', d.id + '__datePurchase', 'datePurchase', d.datePurchase)}
+            ${lwsField('Note', d.id + '__note', 'note', d.note)}
+            ${lwsField('Alias', d.id + '__alias', 'alias', d.alias)}
+            <div class="field">
+              <label>Team</label>
+              ${teamSelectHtml(d.id, d.team)}
+            </div>
+          </div>
+          <div class="lws-detail-actions">
+            <button class="danger" data-id="${d.id}" data-action="delete-device">Delete Device</button>
+          </div>
+        </div>
       `;
-      tbody.appendChild(tr);
+      list.appendChild(row);
     });
   });
   applyReadOnlyUI();
@@ -3208,8 +3117,16 @@ document.getElementById('invImportFile').addEventListener('change', (e) => {
 });
 document.getElementById('inventoryTableBody').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-action="delete-device"]');
-  if (!btn) return;
-  deleteDevice(btn.dataset.id);
+  if (btn) { deleteDevice(btn.dataset.id); return; }
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (rowHeader) { toggleAccordionRow(rowHeader, invExpanded); return; }
+});
+document.getElementById('inventoryTableBody').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (!rowHeader) return;
+  e.preventDefault();
+  toggleAccordionRow(rowHeader, invExpanded);
 });
 document.getElementById('inventoryTableBody').addEventListener('change', (e) => {
   const input = e.target.closest('.edit-field');
@@ -3376,6 +3293,9 @@ async function importMonitorsFromExcel(file) {
   }
 }
 
+// ids of Monitors rows whose detail panel is currently open
+let monExpanded = new Set();
+
 function renderMonitors() {
   const searchTerm = document.getElementById('monSearchBox').value.trim().toLowerCase();
   const teamFilterVal = document.getElementById('monTeamFilter').value;
@@ -3390,11 +3310,11 @@ function renderMonitors() {
   document.getElementById('statMonBranches').textContent = new Set(monitors.map(m => m.branch)).size;
   document.getElementById('statMonPending').textContent = monitors.filter(m => (m.serial || '').trim() === '').length;
 
-  const tbody = document.getElementById('monitorsTableBody');
-  tbody.innerHTML = '';
+  const list = document.getElementById('monitorsTableBody');
+  list.innerHTML = '';
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No monitors found.</td></tr>';
+    list.innerHTML = '<div class="lws-empty">No monitors found.</div>';
     applyReadOnlyUI();
     refreshBranchOptions();
     return;
@@ -3404,25 +3324,43 @@ function renderMonitors() {
   filtered.forEach(m => { if (!branches.includes(m.branch)) branches.push(m.branch); });
 
   branches.forEach(branch => {
-    const headerRow = document.createElement('tr');
-    headerRow.className = 'cluster-header';
-    headerRow.innerHTML = `<td colspan="9">${escapeHtml(branch || 'Unassigned')}</td>`;
-    tbody.appendChild(headerRow);
+    const groupHeader = document.createElement('div');
+    groupHeader.className = 'lws-group-header';
+    groupHeader.textContent = branch || 'Unassigned';
+    list.appendChild(groupHeader);
 
     filtered.filter(m => m.branch === branch).forEach(m => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="terminal" value="${escapeHtml(m.terminal || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="serial" value="${escapeHtml(m.serial || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="pagcor" value="${escapeHtml(m.pagcor || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="screenSize" value="${escapeHtml(m.screenSize || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="brand" value="${escapeHtml(m.brand || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="datePurchase" value="${escapeHtml(m.datePurchase || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${m.id}" data-field="remarks" value="${escapeHtml(m.remarks || '')}" placeholder="—"></td>
-        <td>${teamSelectHtml(m.id, m.team)}</td>
-        <td><button class="danger" data-id="${m.id}" data-action="delete-monitor">Delete</button></td>
+      const isOpen = monExpanded.has(m.id);
+      const row = document.createElement('div');
+      row.className = 'lws-row' + (isOpen ? ' expanded' : '');
+      row.dataset.id = m.id;
+      const name = m.terminal || '(No terminal no.)';
+      row.innerHTML = `
+        <div class="lws-row-header" data-id="${m.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
+          <span class="lws-name">${escapeHtml(name)}</span>
+          ${m.brand ? `<span class="lws-tag">${escapeHtml(m.brand)}</span>` : ''}
+          <span class="lws-chevron">▾</span>
+        </div>
+        <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
+          <div class="lws-detail-grid">
+            ${lwsField('Terminal No.', m.id + '__terminal', 'terminal', m.terminal)}
+            ${lwsField('Serial Number', m.id + '__serial', 'serial', m.serial)}
+            ${lwsField('Pagcor Tag', m.id + '__pagcor', 'pagcor', m.pagcor)}
+            ${lwsField('Screen Size', m.id + '__screenSize', 'screenSize', m.screenSize)}
+            ${lwsField('Brand', m.id + '__brand', 'brand', m.brand)}
+            ${lwsField('Date of Purchase', m.id + '__datePurchase', 'datePurchase', m.datePurchase)}
+            ${lwsField('Remarks', m.id + '__remarks', 'remarks', m.remarks, true)}
+            <div class="field">
+              <label>Team</label>
+              ${teamSelectHtml(m.id, m.team)}
+            </div>
+          </div>
+          <div class="lws-detail-actions">
+            <button class="danger" data-id="${m.id}" data-action="delete-monitor">Delete Monitor</button>
+          </div>
+        </div>
       `;
-      tbody.appendChild(tr);
+      list.appendChild(row);
     });
   });
   applyReadOnlyUI();
@@ -3457,8 +3395,16 @@ document.getElementById('monImportFile').addEventListener('change', (e) => {
 });
 document.getElementById('monitorsTableBody').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-action="delete-monitor"]');
-  if (!btn) return;
-  deleteMonitor(btn.dataset.id);
+  if (btn) { deleteMonitor(btn.dataset.id); return; }
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (rowHeader) { toggleAccordionRow(rowHeader, monExpanded); return; }
+});
+document.getElementById('monitorsTableBody').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (!rowHeader) return;
+  e.preventDefault();
+  toggleAccordionRow(rowHeader, monExpanded);
 });
 document.getElementById('monitorsTableBody').addEventListener('change', (e) => {
   const input = e.target.closest('.edit-field');
@@ -3642,6 +3588,9 @@ async function importSystemUnitsFromExcel(file) {
   }
 }
 
+// ids of System Unit rows whose detail panel is currently open
+let suExpanded = new Set();
+
 function renderSystemUnits() {
   const searchTerm = document.getElementById('suSearchBox').value.trim().toLowerCase();
   const teamFilterVal = document.getElementById('suTeamFilter').value;
@@ -3656,11 +3605,11 @@ function renderSystemUnits() {
   document.getElementById('statSuBranches').textContent = new Set(systemUnits.map(u => u.branch)).size;
   document.getElementById('statSuPending').textContent = systemUnits.filter(u => (u.serial || '').trim() === '').length;
 
-  const tbody = document.getElementById('systemUnitTableBody');
-  tbody.innerHTML = '';
+  const list = document.getElementById('systemUnitTableBody');
+  list.innerHTML = '';
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="12">No system units found.</td></tr>';
+    list.innerHTML = '<div class="lws-empty">No system units found.</div>';
     applyReadOnlyUI();
     refreshBranchOptions();
     return;
@@ -3670,28 +3619,46 @@ function renderSystemUnits() {
   filtered.forEach(u => { if (!branches.includes(u.branch)) branches.push(u.branch); });
 
   branches.forEach(branch => {
-    const headerRow = document.createElement('tr');
-    headerRow.className = 'cluster-header';
-    headerRow.innerHTML = `<td colspan="12">${escapeHtml(branch || 'Unassigned')}</td>`;
-    tbody.appendChild(headerRow);
+    const groupHeader = document.createElement('div');
+    groupHeader.className = 'lws-group-header';
+    groupHeader.textContent = branch || 'Unassigned';
+    list.appendChild(groupHeader);
 
     filtered.filter(u => u.branch === branch).forEach(u => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="terminal" value="${escapeHtml(u.terminal || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="serial" value="${escapeHtml(u.serial || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="pagcor" value="${escapeHtml(u.pagcor || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="mac" value="${escapeHtml(u.mac || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="processor" value="${escapeHtml(u.processor || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="storage" value="${escapeHtml(u.storage || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="memory" value="${escapeHtml(u.memory || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="datePurchase" value="${escapeHtml(u.datePurchase || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="anydesk" value="${escapeHtml(u.anydesk || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${u.id}" data-field="remarks" value="${escapeHtml(u.remarks || '')}" placeholder="—"></td>
-        <td>${teamSelectHtml(u.id, u.team)}</td>
-        <td><button class="danger" data-id="${u.id}" data-action="delete-system-unit">Delete</button></td>
+      const isOpen = suExpanded.has(u.id);
+      const row = document.createElement('div');
+      row.className = 'lws-row' + (isOpen ? ' expanded' : '');
+      row.dataset.id = u.id;
+      const name = u.terminal || '(No terminal no.)';
+      row.innerHTML = `
+        <div class="lws-row-header" data-id="${u.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
+          <span class="lws-name">${escapeHtml(name)}</span>
+          ${u.processor ? `<span class="lws-tag">${escapeHtml(u.processor)}</span>` : ''}
+          <span class="lws-chevron">▾</span>
+        </div>
+        <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
+          <div class="lws-detail-grid">
+            ${lwsField('Terminal No.', u.id + '__terminal', 'terminal', u.terminal)}
+            ${lwsField('Serial Number', u.id + '__serial', 'serial', u.serial)}
+            ${lwsField('Pagcor Tag', u.id + '__pagcor', 'pagcor', u.pagcor)}
+            ${lwsField('MAC Address', u.id + '__mac', 'mac', u.mac)}
+            ${lwsField('Processor', u.id + '__processor', 'processor', u.processor)}
+            ${lwsField('Storage', u.id + '__storage', 'storage', u.storage)}
+            ${lwsField('Memory', u.id + '__memory', 'memory', u.memory)}
+            ${lwsField('Date Purchased', u.id + '__datePurchase', 'datePurchase', u.datePurchase)}
+            ${lwsField('Anydesk ID', u.id + '__anydesk', 'anydesk', u.anydesk)}
+            ${lwsField('Remarks', u.id + '__remarks', 'remarks', u.remarks, true)}
+            <div class="field">
+              <label>Team</label>
+              ${teamSelectHtml(u.id, u.team)}
+            </div>
+          </div>
+          <div class="lws-detail-actions">
+            <button class="danger" data-id="${u.id}" data-action="delete-system-unit">Delete System Unit</button>
+          </div>
+        </div>
       `;
-      tbody.appendChild(tr);
+      list.appendChild(row);
     });
   });
   applyReadOnlyUI();
@@ -3726,8 +3693,16 @@ document.getElementById('suImportFile').addEventListener('change', (e) => {
 });
 document.getElementById('systemUnitTableBody').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-action="delete-system-unit"]');
-  if (!btn) return;
-  deleteSystemUnit(btn.dataset.id);
+  if (btn) { deleteSystemUnit(btn.dataset.id); return; }
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (rowHeader) { toggleAccordionRow(rowHeader, suExpanded); return; }
+});
+document.getElementById('systemUnitTableBody').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (!rowHeader) return;
+  e.preventDefault();
+  toggleAccordionRow(rowHeader, suExpanded);
 });
 document.getElementById('systemUnitTableBody').addEventListener('change', (e) => {
   const input = e.target.closest('.edit-field');
@@ -3888,6 +3863,9 @@ async function importAnydeskFromExcel(file) {
   }
 }
 
+// ids of AnyDesk ID's rows whose detail panel is currently open
+let adidExpanded = new Set();
+
 function renderAnydeskIds() {
   const searchTerm = document.getElementById('adidSearchBox').value.trim().toLowerCase();
   const teamFilterVal = document.getElementById('adidTeamFilter').value;
@@ -3902,11 +3880,11 @@ function renderAnydeskIds() {
   document.getElementById('statAdidSites').textContent = new Set(anydeskIds.map(a => a.site)).size;
   document.getElementById('statAdidMissing').textContent = anydeskIds.filter(a => (a.anydeskId || '').trim() === '').length;
 
-  const tbody = document.getElementById('anydeskTableBody');
-  tbody.innerHTML = '';
+  const list = document.getElementById('anydeskTableBody');
+  list.innerHTML = '';
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No entries found.</td></tr>';
+    list.innerHTML = '<div class="lws-empty">No entries found.</div>';
     applyReadOnlyUI();
     refreshBranchOptions();
     return;
@@ -3916,24 +3894,43 @@ function renderAnydeskIds() {
   filtered.forEach(a => { if (!siteList.includes(a.site)) siteList.push(a.site); });
 
   siteList.forEach(site => {
-    const headerRow = document.createElement('tr');
-    headerRow.className = 'cluster-header';
-    headerRow.innerHTML = `<td colspan="8">${escapeHtml(site || 'Unassigned')}</td>`;
-    tbody.appendChild(headerRow);
+    const groupHeader = document.createElement('div');
+    groupHeader.className = 'lws-group-header';
+    groupHeader.textContent = site || 'Unassigned';
+    list.appendChild(groupHeader);
 
     filtered.filter(a => a.site === site).forEach(a => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="terminal" value="${escapeHtml(a.terminal || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="anydeskId" value="${escapeHtml(a.anydeskId || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="type" value="${escapeHtml(a.type || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="remarks" value="${escapeHtml(a.remarks || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="hardwareAdd" value="${escapeHtml(a.hardwareAdd || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="urlStatus" value="${escapeHtml(a.urlStatus || '')}" placeholder="—"></td>
-        <td>${teamSelectHtml(a.id, a.team)}</td>
-        <td><button class="danger" data-id="${a.id}" data-action="delete-anydesk">Delete</button></td>
+      const isOpen = adidExpanded.has(a.id);
+      const row = document.createElement('div');
+      row.className = 'lws-row' + (isOpen ? ' expanded' : '');
+      row.dataset.id = a.id;
+      const name = a.terminal || a.anydeskId || '(Unnamed entry)';
+      row.innerHTML = `
+        <div class="lws-row-header" data-id="${a.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
+          <span class="lws-name">${escapeHtml(name)}</span>
+          ${a.type ? `<span class="lws-tag">${escapeHtml(a.type)}</span>` : ''}
+          ${doneStatusBadgeHtml(a.urlStatus, '')}
+          <span class="lws-chevron">▾</span>
+        </div>
+        <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
+          <div class="lws-detail-grid">
+            ${lwsField('Terminal / Device', a.id + '__terminal', 'terminal', a.terminal)}
+            ${lwsField('Anydesk ID', a.id + '__anydeskId', 'anydeskId', a.anydeskId)}
+            ${lwsField('Type', a.id + '__type', 'type', a.type)}
+            ${lwsField('Remarks', a.id + '__remarks', 'remarks', a.remarks, true)}
+            ${lwsField('Hardware Add', a.id + '__hardwareAdd', 'hardwareAdd', a.hardwareAdd)}
+            ${lwsField('URL Status', a.id + '__urlStatus', 'urlStatus', a.urlStatus)}
+            <div class="field">
+              <label>Team</label>
+              ${teamSelectHtml(a.id, a.team)}
+            </div>
+          </div>
+          <div class="lws-detail-actions">
+            <button class="danger" data-id="${a.id}" data-action="delete-anydesk">Delete Entry</button>
+          </div>
+        </div>
       `;
-      tbody.appendChild(tr);
+      list.appendChild(row);
     });
   });
   applyReadOnlyUI();
@@ -3968,8 +3965,16 @@ document.getElementById('adidImportFile').addEventListener('change', (e) => {
 });
 document.getElementById('anydeskTableBody').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-action="delete-anydesk"]');
-  if (!btn) return;
-  deleteAnydeskEntry(btn.dataset.id);
+  if (btn) { deleteAnydeskEntry(btn.dataset.id); return; }
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (rowHeader) { toggleAccordionRow(rowHeader, adidExpanded); return; }
+});
+document.getElementById('anydeskTableBody').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (!rowHeader) return;
+  e.preventDefault();
+  toggleAccordionRow(rowHeader, adidExpanded);
 });
 document.getElementById('anydeskTableBody').addEventListener('change', (e) => {
   const input = e.target.closest('.edit-field');
@@ -4128,6 +4133,9 @@ async function importLandbasedFromExcel(file) {
   }
 }
 
+// ids of Landbased Accounts rows whose detail panel is currently open
+let lbaExpanded = new Set();
+
 function renderLandbasedAccounts() {
   const searchTerm = document.getElementById('lbaSearchBox').value.trim().toLowerCase();
   const teamFilterVal = document.getElementById('lbaTeamFilter').value;
@@ -4142,11 +4150,11 @@ function renderLandbasedAccounts() {
   document.getElementById('statLbaSites').textContent = new Set(landbasedAccounts.map(a => a.site)).size;
   document.getElementById('statLbaMissing').textContent = landbasedAccounts.filter(a => (a.username || '').trim() === '').length;
 
-  const tbody = document.getElementById('landbasedTableBody');
-  tbody.innerHTML = '';
+  const list = document.getElementById('landbasedTableBody');
+  list.innerHTML = '';
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No accounts found.</td></tr>';
+    list.innerHTML = '<div class="lws-empty">No accounts found.</div>';
     applyReadOnlyUI();
     refreshBranchOptions();
     return;
@@ -4156,23 +4164,41 @@ function renderLandbasedAccounts() {
   filtered.forEach(a => { if (!siteList.includes(a.site)) siteList.push(a.site); });
 
   siteList.forEach(site => {
-    const headerRow = document.createElement('tr');
-    headerRow.className = 'cluster-header';
-    headerRow.innerHTML = `<td colspan="7">${escapeHtml(site || 'Unassigned')}</td>`;
-    tbody.appendChild(headerRow);
+    const groupHeader = document.createElement('div');
+    groupHeader.className = 'lws-group-header';
+    groupHeader.textContent = site || 'Unassigned';
+    list.appendChild(groupHeader);
 
     filtered.filter(a => a.site === site).forEach(a => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="accountNo" value="${escapeHtml(a.accountNo || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="username" value="${escapeHtml(a.username || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="mobileNumber" value="${escapeHtml(a.mobileNumber || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="operator" value="${escapeHtml(a.operator || '')}" placeholder="—"></td>
-        <td><input type="text" class="edit-field" data-id="${a.id}" data-field="remarks" value="${escapeHtml(a.remarks || '')}" placeholder="—"></td>
-        <td>${teamSelectHtml(a.id, a.team)}</td>
-        <td><button class="danger" data-id="${a.id}" data-action="delete-landbased">Delete</button></td>
+      const isOpen = lbaExpanded.has(a.id);
+      const row = document.createElement('div');
+      row.className = 'lws-row' + (isOpen ? ' expanded' : '');
+      row.dataset.id = a.id;
+      const name = a.username || a.accountNo || '(Unnamed account)';
+      row.innerHTML = `
+        <div class="lws-row-header" data-id="${a.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
+          <span class="lws-name">${escapeHtml(name)}</span>
+          ${a.operator ? `<span class="lws-tag">${escapeHtml(a.operator)}</span>` : ''}
+          <span class="lws-chevron">▾</span>
+        </div>
+        <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
+          <div class="lws-detail-grid">
+            ${lwsField('Account No.', a.id + '__accountNo', 'accountNo', a.accountNo)}
+            ${lwsField('Username', a.id + '__username', 'username', a.username)}
+            ${lwsField('Mobile Number', a.id + '__mobileNumber', 'mobileNumber', a.mobileNumber)}
+            ${lwsField('Operator', a.id + '__operator', 'operator', a.operator)}
+            ${lwsField('Remarks', a.id + '__remarks', 'remarks', a.remarks, true)}
+            <div class="field">
+              <label>Team</label>
+              ${teamSelectHtml(a.id, a.team)}
+            </div>
+          </div>
+          <div class="lws-detail-actions">
+            <button class="danger" data-id="${a.id}" data-action="delete-landbased">Delete Account</button>
+          </div>
+        </div>
       `;
-      tbody.appendChild(tr);
+      list.appendChild(row);
     });
   });
   applyReadOnlyUI();
@@ -4207,8 +4233,16 @@ document.getElementById('lbaImportFile').addEventListener('change', (e) => {
 });
 document.getElementById('landbasedTableBody').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-action="delete-landbased"]');
-  if (!btn) return;
-  deleteLandbasedAccount(btn.dataset.id);
+  if (btn) { deleteLandbasedAccount(btn.dataset.id); return; }
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (rowHeader) { toggleAccordionRow(rowHeader, lbaExpanded); return; }
+});
+document.getElementById('landbasedTableBody').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const rowHeader = e.target.closest('[data-action="toggle-row"]');
+  if (!rowHeader) return;
+  e.preventDefault();
+  toggleAccordionRow(rowHeader, lbaExpanded);
 });
 document.getElementById('landbasedTableBody').addEventListener('change', (e) => {
   const input = e.target.closest('.edit-field');
@@ -4449,6 +4483,40 @@ async function importLakiwinSitesFromExcel(file) {
 
 // ids of sites whose detail panel is currently open — preserved across re-renders
 let lwsExpanded = new Set();
+
+// Generic accordion-row expand/collapse toggle, reused by every list tab
+// that uses the clickable-dropdown row style (PMS Status, Inventory,
+// AnyDesk ID's, Landbased Accounts). Each tab keeps its own expandedSet so
+// opening a row in one tab doesn't affect another.
+function toggleAccordionRow(header, expandedSet) {
+  const id = header.dataset.id;
+  const row = header.closest('.lws-row');
+  const detail = row.querySelector('.lws-detail');
+  if (expandedSet.has(id)) {
+    expandedSet.delete(id);
+    detail.hidden = true;
+    row.classList.remove('expanded');
+    header.setAttribute('aria-expanded', 'false');
+  } else {
+    expandedSet.add(id);
+    detail.hidden = false;
+    row.classList.add('expanded');
+    header.setAttribute('aria-expanded', 'true');
+  }
+}
+
+// Renders a "DONE"-style value as a colored status badge: green "✓ ..." when
+// the value starts with DONE (case-insensitive), a neutral pill otherwise,
+// or nothing when blank. Used for PMS Status' Mark and AnyDesk's URL Status.
+function doneStatusBadgeHtml(value, fallbackLabel) {
+  const val = (value || '').trim();
+  if (!val) {
+    return fallbackLabel ? `<span class="status-badge display-only pending">${escapeHtml(fallbackLabel)}</span>` : '';
+  }
+  const isDone = val.toUpperCase().startsWith('DONE');
+  const label = isDone ? '✓ ' + val : val;
+  return `<span class="status-badge display-only ${isDone ? 'complete' : 'neutral'}">${escapeHtml(label)}</span>`;
+}
 
 function lwsField(label, id, field, value, span2) {
   return `
