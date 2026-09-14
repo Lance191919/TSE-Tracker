@@ -696,7 +696,8 @@
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="work">Work Tracker</button>
-    <button class="tab-btn" data-tab="tsetools">TSE Tools</button>
+    <button class="tab-btn" id="tseToolsTabBtn" data-tab="tsetools">TSE Tools</button>
+    <button class="tab-btn" data-tab="inventory">Inventory</button>
     <button class="tab-btn" data-tab="lakiwin">Lakiwin Sites</button>
     <button class="tab-btn" data-tab="calendar">Calendar</button>
     <button class="tab-btn" data-tab="commute">Commute Guide</button>
@@ -796,7 +797,6 @@
   <div class="tab-panel" id="tab-tsetools">
     <div class="grouptabs">
       <button class="grouptab-btn active" data-grouptab="sites">PMS Status</button>
-      <button class="grouptab-btn" data-grouptab="inventory">Inventory</button>
       <button class="grouptab-btn" data-grouptab="anydesk">AnyDesk ID's</button>
       <button class="grouptab-btn" data-grouptab="phoneduties">OB Phone Duties</button>
       <button class="grouptab-btn" data-grouptab="landbased">Landbased Accounts</button>
@@ -880,8 +880,262 @@
     </div>
   </div>
 
+  <!-- ANYDESK ID'S TAB -->
+  <div class="grouptab-panel" id="tab-anydesk">
+    <div class="add-card">
+      <div class="add-grid adid-add-grid">
+        <div class="field">
+          <label for="adidSite">Site / Branch</label>
+          <input type="text" id="adidSite" list="branchOptions" placeholder="e.g. Berkeley">
+        </div>
+        <div class="field">
+          <label for="adidTerminal">Terminal / Device</label>
+          <input type="text" id="adidTerminal" placeholder="e.g. Terminal 1 or LKWTAB-001">
+        </div>
+        <div class="field">
+          <label for="adidAnydeskId">Anydesk ID</label>
+          <input type="text" id="adidAnydeskId" placeholder="Anydesk ID">
+        </div>
+        <div class="field">
+          <label for="adidType">Type</label>
+          <input type="text" id="adidType" list="adidTypeOptions" placeholder="Tablet / Desktop">
+          <datalist id="adidTypeOptions">
+            <option value="Tablet">
+            <option value="Desktop">
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="adidRemarks">Remarks</label>
+          <input type="text" id="adidRemarks" placeholder="Optional remarks">
+        </div>
+        <div class="field">
+          <label for="adidHardwareAdd">Hardware Add</label>
+          <input type="text" id="adidHardwareAdd" placeholder="Optional">
+        </div>
+        <div class="field">
+          <label for="adidUrlStatus">URL Status</label>
+          <input type="text" id="adidUrlStatus" placeholder="e.g. DONE | LakiGames">
+        </div>
+        <div class="field">
+          <label for="adidTeam">Team</label>
+          <select id="adidTeam" class="field-select">
+            <option value="TSE">TSE</option>
+            <option value="GA">GA</option>
+            <option value="AM">AM</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <button id="adidAddBtn">+ Add Entry</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statAdidTotal">0</div>
+        <div class="label">Total Entries</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statAdidSites">0</div>
+        <div class="label">Sites</div>
+      </div>
+      <div class="stat pending">
+        <div class="num" id="statAdidMissing">0</div>
+        <div class="label">Missing Anydesk ID</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="adidSearchBox" placeholder="Search site, terminal, Anydesk ID...">
+      <select id="adidTeamFilter">
+        <option value="all">All Teams</option>
+        <option value="TSE">TSE</option>
+        <option value="GA">GA</option>
+        <option value="AM">AM</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+      <button class="secondary" id="adidRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="adidExportBtn">⬇ Export to Excel</button>
+      <button class="secondary viewer-hide" id="adidImportBtn">⬆ Import from Excel/CSV</button>
+      <input type="file" id="adidImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
+
+    <div class="lws-list" id="anydeskTableBody">
+      <div class="lws-empty">No entries found.</div>
+    </div>
+  </div>
+
+  <!-- OB PHONE DUTIES TAB -->
+  <div class="grouptab-panel" id="tab-phoneduties">
+    <div class="add-card">
+      <div class="add-grid sites-add-grid">
+        <div class="field">
+          <label for="pdMonth">Month</label>
+          <input type="text" id="pdMonth" list="pdMonthOptions" placeholder="e.g. JANUARY">
+          <datalist id="pdMonthOptions">
+            <option value="JANUARY"><option value="FEBRUARY"><option value="MARCH">
+            <option value="APRIL"><option value="MAY"><option value="JUNE">
+            <option value="JULY"><option value="AUGUST"><option value="SEPTEMBER">
+            <option value="OCTOBER"><option value="NOVEMBER"><option value="DECEMBER">
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="pdDateCovered">Date Covered</label>
+          <input type="text" id="pdDateCovered" placeholder="e.g. 01/05/2026 ~ 01/11/2026">
+        </div>
+        <div class="field">
+          <label for="pdOnDuty">On-Duty</label>
+          <input type="text" id="pdOnDuty" placeholder="Name">
+        </div>
+        <div class="field">
+          <label for="pdBackup">Backup</label>
+          <input type="text" id="pdBackup" placeholder="Name">
+        </div>
+        <div class="field">
+          <label for="pdRemarks">Remarks</label>
+          <input type="text" id="pdRemarks" placeholder="Optional remarks">
+        </div>
+        <div class="field">
+          <label for="pdTeam">Team</label>
+          <select id="pdTeam" class="field-select">
+            <option value="TSE">TSE</option>
+            <option value="GA">GA</option>
+            <option value="AM">AM</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <button id="pdAddBtn">+ Add Entry</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statPdTotal">0</div>
+        <div class="label">Total Weeks</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statPdMonths">0</div>
+        <div class="label">Months</div>
+      </div>
+      <div class="stat pending">
+        <div class="num" id="statPdUnassigned">0</div>
+        <div class="label">Unassigned</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="pdSearchBox" placeholder="Search month, date, on-duty, backup...">
+      <select id="pdTeamFilter">
+        <option value="all">All Teams</option>
+        <option value="TSE">TSE</option>
+        <option value="GA">GA</option>
+        <option value="AM">AM</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+      <button class="secondary" id="pdRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="pdExportBtn">⬇ Export to Excel</button>
+      <button class="secondary viewer-hide" id="pdImportBtn">⬆ Import from Excel/CSV</button>
+      <input type="file" id="pdImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Date Covered</th>
+            <th>On-Duty</th>
+            <th>Backup</th>
+            <th>Remarks</th>
+            <th>Team</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="phoneDutiesTableBody">
+          <tr class="empty-row"><td colspan="6">No entries found.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- LANDBASED ACCOUNTS TAB -->
+  <div class="grouptab-panel" id="tab-landbased">
+    <div class="add-card">
+      <div class="add-grid adid-add-grid">
+        <div class="field">
+          <label for="lbaSite">Site / Branch</label>
+          <input type="text" id="lbaSite" list="branchOptions" placeholder="e.g. LakiWin-Berkeley">
+        </div>
+        <div class="field">
+          <label for="lbaAccountNo">Account No.</label>
+          <input type="text" id="lbaAccountNo" placeholder="e.g. 1">
+        </div>
+        <div class="field">
+          <label for="lbaUsername">Username</label>
+          <input type="text" id="lbaUsername" placeholder="e.g. brky1sseat01">
+        </div>
+        <div class="field">
+          <label for="lbaMobileNumber">Mobile Number</label>
+          <input type="text" id="lbaMobileNumber" placeholder="Mobile number">
+        </div>
+        <div class="field">
+          <label for="lbaOperator">Operator</label>
+          <input type="text" id="lbaOperator" placeholder="e.g. ICBI">
+        </div>
+        <div class="field">
+          <label for="lbaRemarks">Remarks</label>
+          <input type="text" id="lbaRemarks" placeholder="Optional remarks">
+        </div>
+        <div class="field">
+          <label for="lbaTeam">Team</label>
+          <select id="lbaTeam" class="field-select">
+            <option value="TSE">TSE</option>
+            <option value="GA">GA</option>
+            <option value="AM">AM</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <button id="lbaAddBtn">+ Add Account</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statLbaTotal">0</div>
+        <div class="label">Total Accounts</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statLbaSites">0</div>
+        <div class="label">Sites</div>
+      </div>
+      <div class="stat pending">
+        <div class="num" id="statLbaMissing">0</div>
+        <div class="label">Missing Username</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="lbaSearchBox" placeholder="Search site, username, mobile number, operator...">
+      <select id="lbaTeamFilter">
+        <option value="all">All Teams</option>
+        <option value="TSE">TSE</option>
+        <option value="GA">GA</option>
+        <option value="AM">AM</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+      <button class="secondary" id="lbaRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="lbaExportBtn">⬇ Export to Excel</button>
+      <button class="secondary viewer-hide" id="lbaImportBtn">⬆ Import from Excel/CSV</button>
+      <input type="file" id="lbaImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
+
+    <div class="lws-list" id="landbasedTableBody">
+      <div class="lws-empty">No accounts found.</div>
+    </div>
+  </div>
+  </div>
+
   <!-- INVENTORY TAB -->
-  <div class="grouptab-panel" id="tab-inventory">
+  <div class="tab-panel" id="tab-inventory">
     <div class="subtabs">
       <button class="subtab-btn active" data-subtab="tablets">Tablets</button>
       <button class="subtab-btn" data-subtab="monitors">Monitors</button>
@@ -1169,260 +1423,6 @@
     </div>
   </div>
 
-  <!-- ANYDESK ID'S TAB -->
-  <div class="grouptab-panel" id="tab-anydesk">
-    <div class="add-card">
-      <div class="add-grid adid-add-grid">
-        <div class="field">
-          <label for="adidSite">Site / Branch</label>
-          <input type="text" id="adidSite" list="branchOptions" placeholder="e.g. Berkeley">
-        </div>
-        <div class="field">
-          <label for="adidTerminal">Terminal / Device</label>
-          <input type="text" id="adidTerminal" placeholder="e.g. Terminal 1 or LKWTAB-001">
-        </div>
-        <div class="field">
-          <label for="adidAnydeskId">Anydesk ID</label>
-          <input type="text" id="adidAnydeskId" placeholder="Anydesk ID">
-        </div>
-        <div class="field">
-          <label for="adidType">Type</label>
-          <input type="text" id="adidType" list="adidTypeOptions" placeholder="Tablet / Desktop">
-          <datalist id="adidTypeOptions">
-            <option value="Tablet">
-            <option value="Desktop">
-          </datalist>
-        </div>
-        <div class="field">
-          <label for="adidRemarks">Remarks</label>
-          <input type="text" id="adidRemarks" placeholder="Optional remarks">
-        </div>
-        <div class="field">
-          <label for="adidHardwareAdd">Hardware Add</label>
-          <input type="text" id="adidHardwareAdd" placeholder="Optional">
-        </div>
-        <div class="field">
-          <label for="adidUrlStatus">URL Status</label>
-          <input type="text" id="adidUrlStatus" placeholder="e.g. DONE | LakiGames">
-        </div>
-        <div class="field">
-          <label for="adidTeam">Team</label>
-          <select id="adidTeam" class="field-select">
-            <option value="TSE">TSE</option>
-            <option value="GA">GA</option>
-            <option value="AM">AM</option>
-            <option value="ADMIN">ADMIN</option>
-          </select>
-        </div>
-        <button id="adidAddBtn">+ Add Entry</button>
-      </div>
-    </div>
-
-    <div class="summary">
-      <div class="stat">
-        <div class="num" id="statAdidTotal">0</div>
-        <div class="label">Total Entries</div>
-      </div>
-      <div class="stat">
-        <div class="num" id="statAdidSites">0</div>
-        <div class="label">Sites</div>
-      </div>
-      <div class="stat pending">
-        <div class="num" id="statAdidMissing">0</div>
-        <div class="label">Missing Anydesk ID</div>
-      </div>
-    </div>
-
-    <div class="toolbar">
-      <input type="text" id="adidSearchBox" placeholder="Search site, terminal, Anydesk ID...">
-      <select id="adidTeamFilter">
-        <option value="all">All Teams</option>
-        <option value="TSE">TSE</option>
-        <option value="GA">GA</option>
-        <option value="AM">AM</option>
-        <option value="ADMIN">ADMIN</option>
-      </select>
-      <button class="secondary" id="adidRefreshBtn">🔄 Refresh</button>
-      <button class="secondary" id="adidExportBtn">⬇ Export to Excel</button>
-      <button class="secondary viewer-hide" id="adidImportBtn">⬆ Import from Excel/CSV</button>
-      <input type="file" id="adidImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
-    </div>
-
-    <div class="lws-list" id="anydeskTableBody">
-      <div class="lws-empty">No entries found.</div>
-    </div>
-  </div>
-
-  <!-- OB PHONE DUTIES TAB -->
-  <div class="grouptab-panel" id="tab-phoneduties">
-    <div class="add-card">
-      <div class="add-grid sites-add-grid">
-        <div class="field">
-          <label for="pdMonth">Month</label>
-          <input type="text" id="pdMonth" list="pdMonthOptions" placeholder="e.g. JANUARY">
-          <datalist id="pdMonthOptions">
-            <option value="JANUARY"><option value="FEBRUARY"><option value="MARCH">
-            <option value="APRIL"><option value="MAY"><option value="JUNE">
-            <option value="JULY"><option value="AUGUST"><option value="SEPTEMBER">
-            <option value="OCTOBER"><option value="NOVEMBER"><option value="DECEMBER">
-          </datalist>
-        </div>
-        <div class="field">
-          <label for="pdDateCovered">Date Covered</label>
-          <input type="text" id="pdDateCovered" placeholder="e.g. 01/05/2026 ~ 01/11/2026">
-        </div>
-        <div class="field">
-          <label for="pdOnDuty">On-Duty</label>
-          <input type="text" id="pdOnDuty" placeholder="Name">
-        </div>
-        <div class="field">
-          <label for="pdBackup">Backup</label>
-          <input type="text" id="pdBackup" placeholder="Name">
-        </div>
-        <div class="field">
-          <label for="pdRemarks">Remarks</label>
-          <input type="text" id="pdRemarks" placeholder="Optional remarks">
-        </div>
-        <div class="field">
-          <label for="pdTeam">Team</label>
-          <select id="pdTeam" class="field-select">
-            <option value="TSE">TSE</option>
-            <option value="GA">GA</option>
-            <option value="AM">AM</option>
-            <option value="ADMIN">ADMIN</option>
-          </select>
-        </div>
-        <button id="pdAddBtn">+ Add Entry</button>
-      </div>
-    </div>
-
-    <div class="summary">
-      <div class="stat">
-        <div class="num" id="statPdTotal">0</div>
-        <div class="label">Total Weeks</div>
-      </div>
-      <div class="stat">
-        <div class="num" id="statPdMonths">0</div>
-        <div class="label">Months</div>
-      </div>
-      <div class="stat pending">
-        <div class="num" id="statPdUnassigned">0</div>
-        <div class="label">Unassigned</div>
-      </div>
-    </div>
-
-    <div class="toolbar">
-      <input type="text" id="pdSearchBox" placeholder="Search month, date, on-duty, backup...">
-      <select id="pdTeamFilter">
-        <option value="all">All Teams</option>
-        <option value="TSE">TSE</option>
-        <option value="GA">GA</option>
-        <option value="AM">AM</option>
-        <option value="ADMIN">ADMIN</option>
-      </select>
-      <button class="secondary" id="pdRefreshBtn">🔄 Refresh</button>
-      <button class="secondary" id="pdExportBtn">⬇ Export to Excel</button>
-      <button class="secondary viewer-hide" id="pdImportBtn">⬆ Import from Excel/CSV</button>
-      <input type="file" id="pdImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
-    </div>
-
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Date Covered</th>
-            <th>On-Duty</th>
-            <th>Backup</th>
-            <th>Remarks</th>
-            <th>Team</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="phoneDutiesTableBody">
-          <tr class="empty-row"><td colspan="6">No entries found.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-
-  <!-- LANDBASED ACCOUNTS TAB -->
-  <div class="grouptab-panel" id="tab-landbased">
-    <div class="add-card">
-      <div class="add-grid adid-add-grid">
-        <div class="field">
-          <label for="lbaSite">Site / Branch</label>
-          <input type="text" id="lbaSite" list="branchOptions" placeholder="e.g. LakiWin-Berkeley">
-        </div>
-        <div class="field">
-          <label for="lbaAccountNo">Account No.</label>
-          <input type="text" id="lbaAccountNo" placeholder="e.g. 1">
-        </div>
-        <div class="field">
-          <label for="lbaUsername">Username</label>
-          <input type="text" id="lbaUsername" placeholder="e.g. brky1sseat01">
-        </div>
-        <div class="field">
-          <label for="lbaMobileNumber">Mobile Number</label>
-          <input type="text" id="lbaMobileNumber" placeholder="Mobile number">
-        </div>
-        <div class="field">
-          <label for="lbaOperator">Operator</label>
-          <input type="text" id="lbaOperator" placeholder="e.g. ICBI">
-        </div>
-        <div class="field">
-          <label for="lbaRemarks">Remarks</label>
-          <input type="text" id="lbaRemarks" placeholder="Optional remarks">
-        </div>
-        <div class="field">
-          <label for="lbaTeam">Team</label>
-          <select id="lbaTeam" class="field-select">
-            <option value="TSE">TSE</option>
-            <option value="GA">GA</option>
-            <option value="AM">AM</option>
-            <option value="ADMIN">ADMIN</option>
-          </select>
-        </div>
-        <button id="lbaAddBtn">+ Add Account</button>
-      </div>
-    </div>
-
-    <div class="summary">
-      <div class="stat">
-        <div class="num" id="statLbaTotal">0</div>
-        <div class="label">Total Accounts</div>
-      </div>
-      <div class="stat">
-        <div class="num" id="statLbaSites">0</div>
-        <div class="label">Sites</div>
-      </div>
-      <div class="stat pending">
-        <div class="num" id="statLbaMissing">0</div>
-        <div class="label">Missing Username</div>
-      </div>
-    </div>
-
-    <div class="toolbar">
-      <input type="text" id="lbaSearchBox" placeholder="Search site, username, mobile number, operator...">
-      <select id="lbaTeamFilter">
-        <option value="all">All Teams</option>
-        <option value="TSE">TSE</option>
-        <option value="GA">GA</option>
-        <option value="AM">AM</option>
-        <option value="ADMIN">ADMIN</option>
-      </select>
-      <button class="secondary" id="lbaRefreshBtn">🔄 Refresh</button>
-      <button class="secondary" id="lbaExportBtn">⬇ Export to Excel</button>
-      <button class="secondary viewer-hide" id="lbaImportBtn">⬆ Import from Excel/CSV</button>
-      <input type="file" id="lbaImportFile" accept=".xlsx,.xls,.csv" style="display:none;">
-    </div>
-
-    <div class="lws-list" id="landbasedTableBody">
-      <div class="lws-empty">No accounts found.</div>
-    </div>
-  </div>
-  </div>
-
   <!-- LAKIWIN SITES TAB -->
   <div class="tab-panel" id="tab-lakiwin">
     <div class="add-card">
@@ -1691,12 +1691,36 @@ async function loadCurrentUserProfile(user) {
     CURRENT_USER_TEAM = 'TSE';
   }
 }
+/* Teams whose accounts don't need the "TSE Tools" grouping (PMS Status,
+   AnyDesk ID's, OB Phone Duties, Landbased Accounts) at all — add a team
+   to this list to also hide it from that team. Inventory lives outside
+   this grouping (its own top-level tab) precisely so hiding "TSE Tools"
+   never takes Inventory away from a team that still needs it. */
+const TSE_TOOLS_HIDDEN_TEAMS = ['GA'];
+
 function applyRoleUI() {
   document.body.classList.toggle('viewer-mode', isViewer());
   document.body.classList.toggle('admin-mode', isAdmin());
   document.body.classList.toggle('team-scoped', !isAdminTeam());
   const adminTabBtn = document.getElementById('adminTabBtn');
   if (adminTabBtn) adminTabBtn.hidden = !isAdmin();
+  const tseToolsTabBtn = document.getElementById('tseToolsTabBtn');
+  if (tseToolsTabBtn) {
+    const hideIt = TSE_TOOLS_HIDDEN_TEAMS.includes(CURRENT_USER_TEAM);
+    tseToolsTabBtn.hidden = hideIt;
+    // If TSE Tools happened to be the active tab (e.g. team changed while
+    // this account was mid-session), fall back to Work Tracker instead of
+    // leaving them stranded on a now-hidden tab.
+    const tseToolsPanel = document.getElementById('tab-tsetools');
+    if (hideIt && tseToolsPanel && tseToolsPanel.classList.contains('active')) {
+      tseToolsPanel.classList.remove('active');
+      tseToolsTabBtn.classList.remove('active');
+      const workBtn = document.querySelector('.tab-btn[data-tab="work"]');
+      const workPanel = document.getElementById('tab-work');
+      if (workBtn) workBtn.classList.add('active');
+      if (workPanel) workPanel.classList.add('active');
+    }
+  }
 }
 
 function todayStr() {
@@ -4926,11 +4950,20 @@ function parseDateCoveredRange(str) {
   return { start, end };
 }
 
+/* The Team filter select is hidden for non-ADMIN-team accounts (see
+   .team-scope-only), so its DOM value can't be trusted for them — always
+   scope those accounts to their own team instead. An ADMIN-team account
+   keeps using whatever the visible dropdown is set to. */
+function effectiveCalTeamFilter() {
+  if (!isAdminTeam()) return CURRENT_USER_TEAM || 'TSE';
+  const filterEl = document.getElementById('calTeamFilter');
+  return filterEl ? filterEl.value : 'all';
+}
+
 /* Finds the OB Phone Duties entry (if any) whose Date Covered range
    includes the given local Date. */
 function phoneDutyForDate(dateObj) {
-  const filterEl = document.getElementById('calTeamFilter');
-  const teamFilterVal = filterEl ? filterEl.value : 'all';
+  const teamFilterVal = effectiveCalTeamFilter();
   for (const p of phoneDuties) {
     if (teamFilterVal !== 'all' && (p.team || 'TSE') !== teamFilterVal) continue;
     const range = parseDateCoveredRange(p.dateCovered);
@@ -4954,7 +4987,7 @@ function renderCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayKey = todayStr();
 
-  const calTeamFilterVal = document.getElementById('calTeamFilter').value;
+  const calTeamFilterVal = effectiveCalTeamFilter();
   const tasksByDate = {};
   tasks.forEach(t => {
     if (!t.date) return;
@@ -5030,7 +5063,7 @@ function openDayPanel(dateKeyStr) {
   const dateObj = new Date(y, m - 1, d);
   title.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  const calTeamFilterVal = document.getElementById('calTeamFilter').value;
+  const calTeamFilterVal = effectiveCalTeamFilter();
   const dayTasks = tasks.filter(t => t.date === dateKeyStr && (calTeamFilterVal === 'all' || (t.team || 'TSE') === calTeamFilterVal));
   list.innerHTML = '';
 
