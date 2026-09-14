@@ -752,6 +752,8 @@
     <button class="tab-btn" data-tab="inventory">Inventory</button>
     <button class="tab-btn" data-tab="lakiwin">Lakiwin Sites</button>
     <button class="tab-btn" data-tab="calendar">Calendar</button>
+    <button class="tab-btn" id="gaScheduleTabBtn" data-tab="gaschedule" hidden>GA Schedule</button>
+    <button class="tab-btn" id="amScheduleTabBtn" data-tab="amschedule" hidden>AM Schedule</button>
     <button class="tab-btn" data-tab="commute">Commute Guide</button>
     <button class="tab-btn" data-tab="activity">Activity Log</button>
     <button class="tab-btn" data-tab="admin" id="adminTabBtn" hidden>Admin</button>
@@ -1608,6 +1610,182 @@
     </div>
   </div>
 
+  <!-- GA SCHEDULE TAB -->
+  <div class="tab-panel" id="tab-gaschedule">
+    <div class="add-card">
+      <div class="add-grid">
+        <div class="field">
+          <label for="gaInputTask">Task</label>
+          <input type="text" id="gaInputTask" placeholder="e.g. Update the report">
+        </div>
+        <div class="field">
+          <label for="gaInputAssigned">Assigned To</label>
+          <select id="gaInputAssigned" class="field-select">
+            <option value="">Select name...</option>
+            <option value="Dex">Dex</option>
+            <option value="Lance">Lance</option>
+            <option value="Kerwin">Kerwin</option>
+            <option value="Mike">Mike</option>
+            <option value="Mikay">Mikay</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="gaInputDate">Date</label>
+          <input type="date" id="gaInputDate">
+        </div>
+        <button id="gaAddBtn">+ Add</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat pending">
+        <div class="num" id="gaStatPending">0</div>
+        <div class="label">Pending</div>
+      </div>
+      <div class="stat complete">
+        <div class="num" id="gaStatComplete">0</div>
+        <div class="label">Complete</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="gaStatTotal">0</div>
+        <div class="label">Total</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="gaSearchBox" placeholder="Search task or name...">
+      <select id="gaFilterStatus">
+        <option value="all">All Statuses</option>
+        <option value="pending">Pending only</option>
+        <option value="complete">Complete only</option>
+      </select>
+      <button class="secondary" id="gaRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="gaExportBtn">⬇ Export to Excel</button>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Assigned To</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="gaTableBody">
+          <tr class="empty-row"><td colspan="5">No schedule entries found. Add one above.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subtitle" style="margin:24px 0 10px;">GA Calendar</div>
+    <div class="toolbar">
+      <button class="secondary" id="gaCalPrevBtn">← Prev</button>
+      <div id="gaCalMonthLabel" style="font-weight:700; font-size:15px; min-width:160px; text-align:center;"></div>
+      <button class="secondary" id="gaCalNextBtn">Next →</button>
+      <button class="secondary" id="gaCalTodayBtn">Today</button>
+    </div>
+    <div class="cal-grid" id="gaCalGrid"></div>
+
+    <div class="cal-day-panel" id="gaCalDayPanel" style="display:none;">
+      <div class="cal-day-panel-header">
+        <div id="gaCalDayPanelTitle" style="font-weight:700;"></div>
+        <button class="secondary" id="gaCalDayPanelClose">✕ Close</button>
+      </div>
+      <div id="gaCalDayPanelList"></div>
+    </div>
+  </div>
+
+  <!-- AM SCHEDULE TAB -->
+  <div class="tab-panel" id="tab-amschedule">
+    <div class="add-card">
+      <div class="add-grid">
+        <div class="field">
+          <label for="amInputTask">Task</label>
+          <input type="text" id="amInputTask" placeholder="e.g. Update the report">
+        </div>
+        <div class="field">
+          <label for="amInputAssigned">Assigned To</label>
+          <select id="amInputAssigned" class="field-select">
+            <option value="">Select name...</option>
+            <option value="Dex">Dex</option>
+            <option value="Lance">Lance</option>
+            <option value="Kerwin">Kerwin</option>
+            <option value="Mike">Mike</option>
+            <option value="Mikay">Mikay</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="amInputDate">Date</label>
+          <input type="date" id="amInputDate">
+        </div>
+        <button id="amAddBtn">+ Add</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat pending">
+        <div class="num" id="amStatPending">0</div>
+        <div class="label">Pending</div>
+      </div>
+      <div class="stat complete">
+        <div class="num" id="amStatComplete">0</div>
+        <div class="label">Complete</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="amStatTotal">0</div>
+        <div class="label">Total</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="amSearchBox" placeholder="Search task or name...">
+      <select id="amFilterStatus">
+        <option value="all">All Statuses</option>
+        <option value="pending">Pending only</option>
+        <option value="complete">Complete only</option>
+      </select>
+      <button class="secondary" id="amRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="amExportBtn">⬇ Export to Excel</button>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Assigned To</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="amTableBody">
+          <tr class="empty-row"><td colspan="5">No schedule entries found. Add one above.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subtitle" style="margin:24px 0 10px;">AM Calendar</div>
+    <div class="toolbar">
+      <button class="secondary" id="amCalPrevBtn">← Prev</button>
+      <div id="amCalMonthLabel" style="font-weight:700; font-size:15px; min-width:160px; text-align:center;"></div>
+      <button class="secondary" id="amCalNextBtn">Next →</button>
+      <button class="secondary" id="amCalTodayBtn">Today</button>
+    </div>
+    <div class="cal-grid" id="amCalGrid"></div>
+
+    <div class="cal-day-panel" id="amCalDayPanel" style="display:none;">
+      <div class="cal-day-panel-header">
+        <div id="amCalDayPanelTitle" style="font-weight:700;"></div>
+        <button class="secondary" id="amCalDayPanelClose">✕ Close</button>
+      </div>
+      <div id="amCalDayPanelList"></div>
+    </div>
+  </div>
+
   <!-- COMMUTE GUIDE TAB -->
   <div class="tab-panel" id="tab-commute">
     <div class="subtitle" style="margin-bottom:14px;">Public-commute directions from the office to every active LakiWin site — MRT/LRT, provincial bus, jeepney and tricycle legs, with approximate fare and travel time.</div>
@@ -1755,7 +1933,7 @@ async function loadCurrentUserProfile(user) {
    to this list to also hide it from that team. Inventory lives outside
    this grouping (its own top-level tab) precisely so hiding "TSE Tools"
    never takes Inventory away from a team that still needs it. */
-const TSE_TOOLS_HIDDEN_TEAMS = ['GA'];
+const TSE_TOOLS_HIDDEN_TEAMS = ['GA', 'AM'];
 
 /* Teams that never have OB Phone Duty rotations of their own (only TSE
    does) — hide just this one subtab of "TSE Tools" for them, leaving PMS
@@ -1820,6 +1998,35 @@ function applyRoleUI() {
       const sitesPanel = document.getElementById('tab-sites');
       if (sitesBtn) sitesBtn.classList.add('active');
       if (sitesPanel) sitesPanel.classList.add('active');
+    }
+  }
+
+  // GA and AM manage their own schedule (Work Tracker + Calendar) through
+  // dedicated tabs instead of the shared Work Tracker/Calendar tabs, which
+  // stay TSE + ADMIN only. AM also gets "GA Schedule" since AM is the one
+  // inputting GA's schedule.
+  const workTabBtn = document.querySelector('.tab-btn[data-tab="work"]');
+  const calendarTabBtn = document.querySelector('.tab-btn[data-tab="calendar"]');
+  const gaScheduleTabBtn = document.getElementById('gaScheduleTabBtn');
+  const amScheduleTabBtn = document.getElementById('amScheduleTabBtn');
+  const showWorkCalendar = CURRENT_USER_TEAM !== 'GA' && CURRENT_USER_TEAM !== 'AM';
+  if (workTabBtn) workTabBtn.hidden = !showWorkCalendar;
+  if (calendarTabBtn) calendarTabBtn.hidden = !showWorkCalendar;
+  if (gaScheduleTabBtn) gaScheduleTabBtn.hidden = !(CURRENT_USER_TEAM === 'GA' || CURRENT_USER_TEAM === 'AM');
+  if (amScheduleTabBtn) amScheduleTabBtn.hidden = CURRENT_USER_TEAM !== 'AM';
+
+  // Generic safety net: if the active top-level tab just became hidden
+  // (any of the above, or a future one), switch to the first tab this
+  // account can still see instead of leaving it stranded on a blank tab.
+  const activeTabBtn = document.querySelector('.tab-btn.active');
+  if (activeTabBtn && activeTabBtn.hidden) {
+    const nextBtn = document.querySelector('.tab-btn:not([hidden])');
+    if (nextBtn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      nextBtn.classList.add('active');
+      const nextPanel = document.getElementById('tab-' + nextBtn.dataset.tab);
+      if (nextPanel) nextPanel.classList.add('active');
     }
   }
 }
@@ -2653,6 +2860,8 @@ function renderTasks() {
   if (typeof renderCalendar === 'function' && document.getElementById('calGrid')) {
     renderCalendar();
   }
+  if (gaScheduleModule) gaScheduleModule.render();
+  if (amScheduleModule) amScheduleModule.render();
   applyReadOnlyUI();
 }
 
@@ -5352,6 +5561,272 @@ document.getElementById('calDayPanelList').addEventListener('click', async (e) =
   if (!btn) return;
   await toggleStatus(btn.dataset.id);
   renderCalendar();
+});
+
+/* ---------- GA / AM SCHEDULE TABS ---------- */
+/* A self-contained "Work Tracker + Calendar, but fixed to one team" unit
+   — used to build both the GA Schedule and AM Schedule tabs without
+   duplicating the whole Work Tracker/Calendar implementation twice more.
+   Reuses toggleStatus/deleteTask/dbInsert (all already generic, keyed by
+   row id, not team) and the shared `tasks` array — this is just a
+   differently-filtered view over the same data GA/AM/TSE/ADMIN all read
+   from, kept in sync by renderTasks() calling .render() on every mutation
+   (see the renderTasks() change above) and by the realtime subscription
+   (which itself calls renderTasks()). */
+function createScheduleModule(team, ids) {
+  const state = { viewDate: new Date(), selectedDate: null };
+
+  function myTasks() {
+    return tasks.filter(t => (t.team || 'TSE') === team);
+  }
+
+  async function addItem() {
+    const taskInput = document.getElementById(ids.task);
+    const assignedInput = document.getElementById(ids.assigned);
+    const dateInput = document.getElementById(ids.date);
+    if (!taskInput) return;
+    const taskText = taskInput.value.trim();
+    if (!taskText) { taskInput.focus(); return; }
+    const assigned = assignedInput.value.trim();
+    const date = dateInput.value || todayStr();
+    const id = 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const newTask = { id, task: taskText, assigned: assigned || '—', date, team, status: 'pending', createdAt: Date.now() };
+
+    tasks.unshift(newTask);
+    sortTasks();
+    renderTasks();
+    taskInput.value = ''; assignedInput.value = ''; dateInput.value = todayStr();
+
+    const result = await dbInsert('tasks', newTask);
+    if (!result.ok) {
+      tasks = tasks.filter(t => t.id !== id);
+      renderTasks();
+    }
+  }
+
+  function render() {
+    const tbody = document.getElementById(ids.tableBody);
+    if (!tbody) return; // this account's DOM doesn't have this module's tab
+
+    const searchTerm = (document.getElementById(ids.search)?.value || '').trim().toLowerCase();
+    const filterVal = document.getElementById(ids.filterStatus)?.value || 'all';
+    const own = myTasks();
+    const filtered = own.filter(t => {
+      if (filterVal !== 'all' && t.status !== filterVal) return false;
+      if (searchTerm && !(t.task + ' ' + t.assigned).toLowerCase().includes(searchTerm)) return false;
+      return true;
+    });
+
+    const statPending = document.getElementById(ids.statPending);
+    const statComplete = document.getElementById(ids.statComplete);
+    const statTotal = document.getElementById(ids.statTotal);
+    if (statPending) statPending.textContent = own.filter(t => t.status === 'pending').length;
+    if (statComplete) statComplete.textContent = own.filter(t => t.status === 'complete').length;
+    if (statTotal) statTotal.textContent = own.length;
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No schedule entries found. Add one above.</td></tr>';
+    } else {
+      filtered.forEach(t => {
+        const tr = document.createElement('tr');
+        const badgeLabel = t.status === 'complete' ? '✓ Complete' : '⏳ Pending';
+        tr.innerHTML = `
+          <td>${escapeHtml(t.task)}</td>
+          <td>${escapeHtml(t.assigned)}</td>
+          <td>${escapeHtml(t.date)}</td>
+          <td><button class="status-badge ${t.status}" data-id="${t.id}" data-action="toggle">${badgeLabel}</button></td>
+          <td><button class="danger" data-id="${t.id}" data-action="delete">Delete</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    renderCal();
+    applyReadOnlyUI();
+  }
+
+  function renderCal() {
+    const grid = document.getElementById(ids.calGrid);
+    if (!grid) return;
+    const label = document.getElementById(ids.calMonthLabel);
+    const year = state.viewDate.getFullYear();
+    const month = state.viewDate.getMonth();
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    if (label) label.textContent = `${monthNames[month]} ${year}`;
+
+    const firstDay = new Date(year, month, 1);
+    const startWeekday = firstDay.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayKey = todayStr();
+
+    const tasksByDate = {};
+    myTasks().forEach(t => {
+      if (!t.date) return;
+      if (!tasksByDate[t.date]) tasksByDate[t.date] = [];
+      tasksByDate[t.date].push(t);
+    });
+
+    grid.innerHTML = '';
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+      const el = document.createElement('div');
+      el.className = 'cal-dow';
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+    for (let i = 0; i < startWeekday; i++) {
+      const el = document.createElement('div');
+      el.className = 'cal-cell empty';
+      grid.appendChild(el);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = dateKey(year, month, d);
+      const dayTasks = tasksByDate[key] || [];
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell' + (key === todayKey ? ' today' : '');
+      cell.dataset.date = key;
+      const numEl = document.createElement('div');
+      numEl.className = 'cal-date-num';
+      numEl.textContent = d;
+      cell.appendChild(numEl);
+      if (dayTasks.length > 0) {
+        const dotsEl = document.createElement('div');
+        dotsEl.className = 'cal-dots';
+        dayTasks.slice(0, 6).forEach(t => {
+          const dot = document.createElement('div');
+          dot.className = 'cal-dot ' + (t.status === 'complete' ? 'complete' : 'pending');
+          dotsEl.appendChild(dot);
+        });
+        cell.appendChild(dotsEl);
+        const countEl = document.createElement('div');
+        countEl.className = 'cal-count';
+        countEl.textContent = `${dayTasks.length} task${dayTasks.length > 1 ? 's' : ''}`;
+        cell.appendChild(countEl);
+      }
+      cell.addEventListener('click', () => openDay(key));
+      grid.appendChild(cell);
+    }
+    if (state.selectedDate) openDay(state.selectedDate);
+  }
+
+  function openDay(dateKeyStr) {
+    state.selectedDate = dateKeyStr;
+    const panel = document.getElementById(ids.calDayPanel);
+    const title = document.getElementById(ids.calDayPanelTitle);
+    const list = document.getElementById(ids.calDayPanelList);
+    if (!panel || !title || !list) return;
+    const [y, m, d] = dateKeyStr.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    title.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const dayTasks = myTasks().filter(t => t.date === dateKeyStr);
+    list.innerHTML = '';
+    if (dayTasks.length === 0) {
+      const emptyEl = document.createElement('div');
+      emptyEl.className = 'cal-empty-day';
+      emptyEl.textContent = 'No schedule entries for this day.';
+      list.appendChild(emptyEl);
+    } else {
+      dayTasks.forEach(t => {
+        const item = document.createElement('div');
+        item.className = 'cal-day-item';
+        const badgeLabel = t.status === 'complete' ? '✓ Complete' : '⏳ Pending';
+        item.innerHTML = `
+          <div class="cal-day-item-info">
+            <div class="cal-day-item-task">${escapeHtml(t.task)}</div>
+            <div class="cal-day-item-assigned">${escapeHtml(t.assigned)}</div>
+          </div>
+          <button class="status-badge ${t.status}" data-id="${t.id}" data-action="cal-toggle">${badgeLabel}</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+    panel.style.display = 'block';
+    applyReadOnlyUI();
+  }
+
+  const addBtn = document.getElementById(ids.addBtn);
+  if (addBtn) addBtn.addEventListener('click', addItem);
+  const taskInput = document.getElementById(ids.task);
+  if (taskInput) taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addItem(); });
+  const searchBox = document.getElementById(ids.search);
+  if (searchBox) searchBox.addEventListener('input', render);
+  const filterStatusEl = document.getElementById(ids.filterStatus);
+  if (filterStatusEl) filterStatusEl.addEventListener('change', render);
+  const refreshBtn = document.getElementById(ids.refreshBtn);
+  if (refreshBtn) refreshBtn.addEventListener('click', () => location.reload());
+  const exportBtn = document.getElementById(ids.exportBtn);
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      const rows = myTasks().map(t => ({
+        Task: t.task, 'Assigned To': t.assigned, Date: t.date,
+        Status: t.status === 'complete' ? 'Complete' : 'Pending'
+      }));
+      if (rows.length === 0) { alert('No schedule entries to export yet.'); return; }
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 32 }, { wch: 20 }, { wch: 14 }, { wch: 12 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, team + ' Schedule');
+      XLSX.writeFile(wb, `${team.toLowerCase()}_schedule_${todayStr()}.xlsx`);
+    });
+  }
+  const tbodyEl = document.getElementById(ids.tableBody);
+  if (tbodyEl) {
+    tbodyEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      if (btn.dataset.action === 'toggle') toggleStatus(btn.dataset.id);
+      if (btn.dataset.action === 'delete') deleteTask(btn.dataset.id);
+    });
+  }
+  const calPrevBtn = document.getElementById(ids.calPrevBtn);
+  if (calPrevBtn) calPrevBtn.addEventListener('click', () => {
+    state.viewDate = new Date(state.viewDate.getFullYear(), state.viewDate.getMonth() - 1, 1);
+    renderCal();
+  });
+  const calNextBtn = document.getElementById(ids.calNextBtn);
+  if (calNextBtn) calNextBtn.addEventListener('click', () => {
+    state.viewDate = new Date(state.viewDate.getFullYear(), state.viewDate.getMonth() + 1, 1);
+    renderCal();
+  });
+  const calTodayBtn = document.getElementById(ids.calTodayBtn);
+  if (calTodayBtn) calTodayBtn.addEventListener('click', () => { state.viewDate = new Date(); renderCal(); });
+  const calDayPanelCloseBtn = document.getElementById(ids.calDayPanelClose);
+  if (calDayPanelCloseBtn) {
+    calDayPanelCloseBtn.addEventListener('click', () => {
+      state.selectedDate = null;
+      const panel = document.getElementById(ids.calDayPanel);
+      if (panel) panel.style.display = 'none';
+    });
+  }
+  const calDayPanelListEl = document.getElementById(ids.calDayPanelList);
+  if (calDayPanelListEl) {
+    calDayPanelListEl.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-action="cal-toggle"]');
+      if (!btn) return;
+      await toggleStatus(btn.dataset.id);
+      renderCal();
+    });
+  }
+
+  return { render };
+}
+
+const gaScheduleModule = createScheduleModule('GA', {
+  task: 'gaInputTask', assigned: 'gaInputAssigned', date: 'gaInputDate', addBtn: 'gaAddBtn',
+  search: 'gaSearchBox', filterStatus: 'gaFilterStatus', refreshBtn: 'gaRefreshBtn', exportBtn: 'gaExportBtn',
+  tableBody: 'gaTableBody', statPending: 'gaStatPending', statComplete: 'gaStatComplete', statTotal: 'gaStatTotal',
+  calGrid: 'gaCalGrid', calMonthLabel: 'gaCalMonthLabel', calPrevBtn: 'gaCalPrevBtn', calNextBtn: 'gaCalNextBtn',
+  calTodayBtn: 'gaCalTodayBtn', calDayPanel: 'gaCalDayPanel', calDayPanelTitle: 'gaCalDayPanelTitle',
+  calDayPanelList: 'gaCalDayPanelList', calDayPanelClose: 'gaCalDayPanelClose'
+});
+
+const amScheduleModule = createScheduleModule('AM', {
+  task: 'amInputTask', assigned: 'amInputAssigned', date: 'amInputDate', addBtn: 'amAddBtn',
+  search: 'amSearchBox', filterStatus: 'amFilterStatus', refreshBtn: 'amRefreshBtn', exportBtn: 'amExportBtn',
+  tableBody: 'amTableBody', statPending: 'amStatPending', statComplete: 'amStatComplete', statTotal: 'amStatTotal',
+  calGrid: 'amCalGrid', calMonthLabel: 'amCalMonthLabel', calPrevBtn: 'amCalPrevBtn', calNextBtn: 'amCalNextBtn',
+  calTodayBtn: 'amCalTodayBtn', calDayPanel: 'amCalDayPanel', calDayPanelTitle: 'amCalDayPanelTitle',
+  calDayPanelList: 'amCalDayPanelList', calDayPanelClose: 'amCalDayPanelClose'
 });
 
 /* ---------- LOGIN (Supabase Auth) + INIT ---------- */
