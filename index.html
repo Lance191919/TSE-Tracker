@@ -748,7 +748,7 @@
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="work">Work Tracker</button>
-    <button class="tab-btn" id="tseToolsTabBtn" data-tab="tsetools">TSE Tools</button>
+    <button class="tab-btn" id="tseToolsTabBtn" data-tab="tsetools">TSE Assets</button>
     <button class="tab-btn" data-tab="inventory">Inventory</button>
     <button class="tab-btn" data-tab="lakiwin">Lakiwin Sites</button>
     <button class="tab-btn" data-tab="calendar">Calendar</button>
@@ -4110,6 +4110,23 @@ function exportAnydeskToExcel() {
   XLSX.writeFile(wb, `anydesk_ids_${todayStr()}.xlsx`);
 }
 
+/* Anydesk ID and Terminal/Device must each be unique across every entry
+   (not just within the same site) — site name is fine to repeat, that's
+   how the list groups rows. Returns the first existing entry that
+   collides on either field, or null. Blank values are never treated as
+   a collision. `excludeId` lets an edit ignore the row being edited. */
+function findDuplicateAnydeskEntry(anydeskId, terminal, excludeId) {
+  const idNorm = (anydeskId || '').trim().toLowerCase();
+  const termNorm = (terminal || '').trim().toLowerCase();
+  if (!idNorm && !termNorm) return null;
+  return anydeskIds.find(a => {
+    if (a.id === excludeId) return false;
+    if (idNorm && (a.anydeskId || '').trim().toLowerCase() === idNorm) return true;
+    if (termNorm && (a.terminal || '').trim().toLowerCase() === termNorm) return true;
+    return false;
+  }) || null;
+}
+
 async function addAnydeskEntry() {
   const siteInput = document.getElementById('adidSite');
   const terminalInput = document.getElementById('adidTerminal');
@@ -4123,12 +4140,21 @@ async function addAnydeskEntry() {
   const site = siteInput.value.trim();
   if (!site) { siteInput.focus(); return; }
 
+  const terminal = terminalInput.value.trim();
+  const anydeskId = anydeskIdInput.value.trim();
+  const dup = findDuplicateAnydeskEntry(anydeskId, terminal, null);
+  if (dup) {
+    const field = anydeskId && (dup.anydeskId || '').trim().toLowerCase() === anydeskId.toLowerCase() ? 'Anydesk ID' : 'Terminal/Device';
+    alert(`Cannot add: that ${field} is already used by an existing entry (${dup.site || 'Unassigned'}${dup.terminal ? ' — ' + dup.terminal : ''}). Please use a different value.`);
+    return;
+  }
+
   const id = 'adid_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   const newEntry = {
     id,
     site,
-    terminal: terminalInput.value.trim(),
-    anydeskId: anydeskIdInput.value.trim(),
+    terminal,
+    anydeskId,
     type: typeInput.value.trim(),
     remarks: remarksInput.value.trim(),
     hardwareAdd: hardwareAddInput.value.trim(),
@@ -4196,6 +4222,7 @@ async function importAnydeskFromExcel(file) {
     const prevAnydeskIds = anydeskIds.map(a => ({ ...a }));
     let updatedCount = 0;
     let addedCount = 0;
+    let skippedCount = 0;
     // Match existing rows by site + terminal (entries have no other unique key).
     const existingByKey = new Map(anydeskIds.map(a => [(a.site.trim() + '|' + (a.terminal || '').trim()).toLowerCase(), a]));
 
@@ -4221,6 +4248,14 @@ async function importAnydeskFromExcel(file) {
         if (urlStatus) a.urlStatus = urlStatus;
         updatedCount++;
       } else {
+        // A row that isn't refreshing an existing site+terminal entry still
+        // can't reuse an Anydesk ID or Terminal number already taken by
+        // some OTHER entry (possibly at a different site) — skip it rather
+        // than create a silent duplicate.
+        if (findDuplicateAnydeskEntry(anydeskId, terminal, null)) {
+          skippedCount++;
+          continue;
+        }
         const id = 'adid_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         const newEntry = { id, site, terminal, anydeskId, type, remarks, hardwareAdd, urlStatus };
         anydeskIds.push(newEntry);
@@ -4236,7 +4271,7 @@ async function importAnydeskFromExcel(file) {
       renderAnydeskIds();
       return;
     }
-    alert(`Import complete: ${updatedCount} entry(ies) updated, ${addedCount} entry(ies) added.`);
+    alert(`Import complete: ${updatedCount} entry(ies) updated, ${addedCount} entry(ies) added.` + (skippedCount > 0 ? ` ${skippedCount} row(s) skipped — duplicate Anydesk ID or Terminal number.` : ''));
   } catch (err) {
     alert('Failed to import file: ' + err.message);
   }
@@ -4403,6 +4438,16 @@ function exportLandbasedToExcel() {
   XLSX.writeFile(wb, `landbased_accounts_${todayStr()}.xlsx`);
 }
 
+/* Mobile Number must be unique across every Landbased account entry.
+   Returns the first existing entry with the same (trimmed) mobile
+   number, or null. A blank mobile number is never treated as a
+   collision. `excludeId` lets an edit ignore the row being edited. */
+function findDuplicateLandbasedAccount(mobileNumber, excludeId) {
+  const norm = (mobileNumber || '').trim().toLowerCase();
+  if (!norm) return null;
+  return landbasedAccounts.find(a => a.id !== excludeId && (a.mobileNumber || '').trim().toLowerCase() === norm) || null;
+}
+
 async function addLandbasedAccount() {
   const siteInput = document.getElementById('lbaSite');
   const accountNoInput = document.getElementById('lbaAccountNo');
@@ -4415,13 +4460,20 @@ async function addLandbasedAccount() {
   const site = siteInput.value.trim();
   if (!site) { siteInput.focus(); return; }
 
+  const mobileNumber = mobileNumberInput.value.trim();
+  const dup = findDuplicateLandbasedAccount(mobileNumber, null);
+  if (dup) {
+    alert(`Cannot add: that Mobile Number is already used by an existing account (${dup.site || 'Unassigned'}${dup.username ? ' — ' + dup.username : ''}). Please use a different value.`);
+    return;
+  }
+
   const id = 'lba_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   const newEntry = {
     id,
     site,
     accountNo: accountNoInput.value.trim(),
     username: usernameInput.value.trim(),
-    mobileNumber: mobileNumberInput.value.trim(),
+    mobileNumber,
     operator: operatorInput.value.trim(),
     remarks: remarksInput.value.trim(),
     team: teamInput.value || 'TSE'
@@ -4486,6 +4538,7 @@ async function importLandbasedFromExcel(file) {
     const prevLandbasedAccounts = landbasedAccounts.map(a => ({ ...a }));
     let updatedCount = 0;
     let addedCount = 0;
+    let skippedCount = 0;
     let lastOperator = '';
     // Match existing rows by site + username (entries have no other unique key).
     const existingByKey = new Map(landbasedAccounts.map(a => [(a.site.trim() + '|' + (a.username || '').trim()).toLowerCase(), a]));
@@ -4512,6 +4565,13 @@ async function importLandbasedFromExcel(file) {
         if (remarks) a.remarks = remarks;
         updatedCount++;
       } else {
+        // A row that isn't refreshing an existing site+username entry still
+        // can't reuse a Mobile Number already taken by some OTHER account —
+        // skip it rather than create a silent duplicate.
+        if (findDuplicateLandbasedAccount(mobileNumber, null)) {
+          skippedCount++;
+          continue;
+        }
         const id = 'lba_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         const newEntry = { id, site, accountNo, username, mobileNumber, operator, remarks };
         landbasedAccounts.push(newEntry);
@@ -4527,7 +4587,7 @@ async function importLandbasedFromExcel(file) {
       renderLandbasedAccounts();
       return;
     }
-    alert(`Import complete: ${updatedCount} entry(ies) updated, ${addedCount} entry(ies) added.`);
+    alert(`Import complete: ${updatedCount} entry(ies) updated, ${addedCount} entry(ies) added.` + (skippedCount > 0 ? ` ${skippedCount} row(s) skipped — duplicate Mobile Number.` : ''));
   } catch (err) {
     alert('Failed to import file: ' + err.message);
   }
