@@ -4371,6 +4371,19 @@ function renderAnydeskIds() {
 async function updateAnydeskField(id, field, value) {
   const entry = anydeskIds.find(a => a.id === id);
   if (!entry) return;
+  if (field === 'anydeskId' || field === 'terminal') {
+    const dup = findDuplicateAnydeskEntry(
+      field === 'anydeskId' ? value : entry.anydeskId,
+      field === 'terminal' ? value : entry.terminal,
+      id
+    );
+    if (dup) {
+      const fieldLabel = field === 'anydeskId' ? 'Anydesk ID' : 'Terminal/Device';
+      alert(`Cannot save: that ${fieldLabel} is already used by an existing entry (${dup.site || 'Unassigned'}${dup.terminal ? ' — ' + dup.terminal : ''}).`);
+      renderAnydeskIds();
+      return;
+    }
+  }
   const prevValue = entry[field];
   entry[field] = value;
   const result = await dbUpdate('anydeskIds', id, { [field]: value });
@@ -4685,6 +4698,14 @@ function renderLandbasedAccounts() {
 async function updateLandbasedField(id, field, value) {
   const entry = landbasedAccounts.find(a => a.id === id);
   if (!entry) return;
+  if (field === 'mobileNumber') {
+    const dup = findDuplicateLandbasedAccount(value, id);
+    if (dup) {
+      alert(`Cannot save: that Mobile Number is already used by an existing account (${dup.site || 'Unassigned'}${dup.username ? ' — ' + dup.username : ''}).`);
+      renderLandbasedAccounts();
+      return;
+    }
+  }
   const prevValue = entry[field];
   entry[field] = value;
   const result = await dbUpdate('landbasedAccounts', id, { [field]: value });
