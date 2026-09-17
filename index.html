@@ -743,7 +743,13 @@
     </div>
   </div>
 
-  <datalist id="branchOptions"></datalist>
+  <datalist id="branchOptionsSites"></datalist>
+  <datalist id="branchOptionsAnydesk"></datalist>
+  <datalist id="branchOptionsLandbased"></datalist>
+  <datalist id="branchOptionsInventory"></datalist>
+  <datalist id="branchOptionsMonitors"></datalist>
+  <datalist id="branchOptionsSystemUnits"></datalist>
+  <datalist id="branchOptionsLakiwin"></datalist>
   <datalist id="clusterOptions"></datalist>
 
   <div class="tabs">
@@ -865,7 +871,7 @@
         </div>
         <div class="field">
           <label for="siteName">Site Name</label>
-          <input type="text" id="siteName" list="branchOptions" placeholder="e.g. LakiWin - New Site">
+          <input type="text" id="siteName" list="branchOptionsSites" placeholder="e.g. LakiWin - New Site">
         </div>
         <div class="field">
           <label for="siteTse">TSE</label>
@@ -940,7 +946,7 @@
       <div class="add-grid adid-add-grid">
         <div class="field">
           <label for="adidSite">Site / Branch</label>
-          <input type="text" id="adidSite" list="branchOptions" placeholder="e.g. Berkeley">
+          <input type="text" id="adidSite" list="branchOptionsAnydesk" placeholder="e.g. Berkeley">
         </div>
         <div class="field">
           <label for="adidTerminal">Terminal / Device</label>
@@ -1117,7 +1123,7 @@
       <div class="add-grid adid-add-grid">
         <div class="field">
           <label for="lbaSite">Site / Branch</label>
-          <input type="text" id="lbaSite" list="branchOptions" placeholder="e.g. LakiWin-Berkeley">
+          <input type="text" id="lbaSite" list="branchOptionsLandbased" placeholder="e.g. LakiWin-Berkeley">
         </div>
         <div class="field">
           <label for="lbaAccountNo">Account No.</label>
@@ -1202,7 +1208,7 @@
         <div class="add-grid inv-add-grid">
           <div class="field">
             <label for="invBranch">Branch</label>
-            <input type="text" id="invBranch" list="branchOptions" placeholder="e.g. Berkeley">
+            <input type="text" id="invBranch" list="branchOptionsInventory" placeholder="e.g. Berkeley">
           </div>
           <div class="field">
             <label for="invDeviceName">Device Name</label>
@@ -1302,7 +1308,7 @@
         <div class="add-grid inv-add-grid">
           <div class="field">
             <label for="monBranch">Branch</label>
-            <input type="text" id="monBranch" list="branchOptions" placeholder="e.g. Royal Place">
+            <input type="text" id="monBranch" list="branchOptionsMonitors" placeholder="e.g. Royal Place">
           </div>
           <div class="field">
             <label for="monTerminal">Terminal No.</label>
@@ -1386,7 +1392,7 @@
         <div class="add-grid inv-add-grid">
           <div class="field">
             <label for="suBranch">Branch</label>
-            <input type="text" id="suBranch" list="branchOptions" placeholder="e.g. Tregs-Tarlac">
+            <input type="text" id="suBranch" list="branchOptionsSystemUnits" placeholder="e.g. Tregs-Tarlac">
           </div>
           <div class="field">
             <label for="suTerminal">Terminal No.</label>
@@ -1483,7 +1489,7 @@
       <div class="add-grid lws-add-grid">
         <div class="field">
           <label for="lwsSiteName">Site Name</label>
-          <input type="text" id="lwsSiteName" list="branchOptions" placeholder="e.g. LakiWin - New Site">
+          <input type="text" id="lwsSiteName" list="branchOptionsLakiwin" placeholder="e.g. LakiWin - New Site">
         </div>
         <div class="field">
           <label for="lwsOperator">Operator</label>
@@ -2953,23 +2959,27 @@ async function addSite() {
   }
 }
 
-/* Keeps the shared Branch / Cluster datalists in sync with whatever the
-   Sites, Tablets, and Monitors tabs currently know about, so a name typed
-   in any one of them shows up as a suggestion in the others. */
+/* Keeps each tab's own Site/Branch datalist in sync with that SAME tab's
+   existing values only -- so the Add-form dropdown for e.g. AnyDesk ID's
+   only ever suggests site names already used in AnyDesk ID's, not names
+   typed in other tabs under a different naming convention. Typing a brand
+   new site name that isn't suggested yet is still allowed (plain text
+   input, datalist is suggestions-only, never a restriction). */
+function fillDatalist(id, values) {
+  const list = document.getElementById(id);
+  if (!list) return;
+  const names = new Set(values.filter(Boolean));
+  list.innerHTML = Array.from(names).sort().map(n => `<option value="${escapeHtml(n)}">`).join('');
+}
+
 function refreshBranchOptions() {
-  const branchNames = new Set([
-    ...sites.map(s => s.name),
-    ...inventory.map(d => d.branch),
-    ...monitors.map(m => m.branch),
-    ...systemUnits.map(u => u.branch),
-    ...lakiwinSites.map(s => s.siteName),
-    ...anydeskIds.map(a => a.site),
-    ...landbasedAccounts.map(a => a.site)
-  ].filter(Boolean));
-  const branchList = document.getElementById('branchOptions');
-  if (branchList) {
-    branchList.innerHTML = Array.from(branchNames).sort().map(n => `<option value="${escapeHtml(n)}">`).join('');
-  }
+  fillDatalist('branchOptionsSites', sites.map(s => s.name));
+  fillDatalist('branchOptionsAnydesk', anydeskIds.map(a => a.site));
+  fillDatalist('branchOptionsLandbased', landbasedAccounts.map(a => a.site));
+  fillDatalist('branchOptionsInventory', inventory.map(d => d.branch));
+  fillDatalist('branchOptionsMonitors', monitors.map(m => m.branch));
+  fillDatalist('branchOptionsSystemUnits', systemUnits.map(u => u.branch));
+  fillDatalist('branchOptionsLakiwin', lakiwinSites.map(s => s.siteName));
 
   const clusterNames = new Set(sites.map(s => s.cluster).filter(Boolean));
   const clusterList = document.getElementById('clusterOptions');
