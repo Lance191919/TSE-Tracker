@@ -3189,7 +3189,8 @@ async function importSitesFromExcel(file) {
         const id = 'site_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         const newSite = {
           id, cluster: cluster || 'Unassigned', name, tse, hours, sched, datedone, mark,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          team: (CURRENT_USER_TEAM && CURRENT_USER_TEAM !== 'ADMIN') ? CURRENT_USER_TEAM : 'TSE'
         };
         sites.push(newSite);
         existingByName.set(key, newSite);
@@ -4402,7 +4403,10 @@ async function importAnydeskFromExcel(file) {
           continue;
         }
         const id = 'adid_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-        const newEntry = { id, site, terminal, anydeskId, type, remarks, hardwareAdd, urlStatus };
+        const newEntry = {
+          id, site, terminal, anydeskId, type, remarks, hardwareAdd, urlStatus,
+          team: (CURRENT_USER_TEAM && CURRENT_USER_TEAM !== 'ADMIN') ? CURRENT_USER_TEAM : 'TSE'
+        };
         anydeskIds.push(newEntry);
         existingByKey.set(key, newEntry);
         addedCount++;
@@ -4726,7 +4730,10 @@ async function importLandbasedFromExcel(file) {
           continue;
         }
         const id = 'lba_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-        const newEntry = { id, site, accountNo, username, mobileNumber, operator, remarks };
+        const newEntry = {
+          id, site, accountNo, username, mobileNumber, operator, remarks,
+          team: (CURRENT_USER_TEAM && CURRENT_USER_TEAM !== 'ADMIN') ? CURRENT_USER_TEAM : 'TSE'
+        };
         landbasedAccounts.push(newEntry);
         existingByKey.set(key, newEntry);
         addedCount++;
@@ -5460,7 +5467,10 @@ async function importPhoneDutiesFromExcel(file) {
       const remarks = get('remarks');
 
       const id = 'pd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-      phoneDuties.push({ id, month: currentMonth || 'Unassigned', dateCovered, onDuty, backup, remarks });
+      phoneDuties.push({
+        id, month: currentMonth || 'Unassigned', dateCovered, onDuty, backup, remarks,
+        team: (CURRENT_USER_TEAM && CURRENT_USER_TEAM !== 'ADMIN') ? CURRENT_USER_TEAM : 'TSE'
+      });
       addedCount++;
     }
 
@@ -6051,15 +6061,50 @@ const amScheduleModule = createScheduleModule('AM', {
 });
 
 /* ---------- TROUBLESHOOTING GUIDE ---------- */
-const TG_CATEGORIES = [
-  { key: 'power', label: 'Power / Display' },
-  { key: 'network', label: 'Network' },
-  { key: 'performance', label: 'Performance' },
-  { key: 'software', label: 'Software / Crash' }
-];
-function tgCategoryLabel(key) {
-  const c = TG_CATEGORIES.find(c => c.key === key);
-  return c ? c.label : (key || '');
+const TG_DEFAULT_CATEGORIES = ['Power / Display', 'Network', 'Performance', 'Software / Crash'];
+const TG_CATEGORY_COLORS = { power: '#ef5b60', network: '#5b8def', performance: '#e08a3c', software: '#9b6fd6' };
+const TG_EXTRA_PALETTE = ['#4fbf7a', '#e2b23c', '#5bc9d9', '#d95bb0', '#8ecf5b', '#d9a55b', '#5bd9c6', '#c67ad9'];
+
+/* Category used to be a fixed key (power/network/performance/software).
+   It's now free text -- editors can type their own category -- so this
+   maps the 4 old keys to their nice label for entries saved before this
+   change, and otherwise just returns whatever text is stored. Old data
+   keeps displaying correctly with no migration needed. */
+function tgCategoryDisplay(cat) {
+  const key = (cat || '').trim().toLowerCase();
+  if (key === 'power') return 'Power / Display';
+  if (key === 'network') return 'Network';
+  if (key === 'performance') return 'Performance';
+  if (key === 'software') return 'Software / Crash';
+  return (cat || '').trim() || 'Uncategorized';
+}
+/* Every category (built-in or a custom one someone typed) gets a stable
+   color: the 4 built-ins keep their fixed color, anything else is hashed
+   into a fixed extra palette so it always shows the same color without
+   needing one to be picked by hand. */
+function tgCategoryColor(cat) {
+  const label = tgCategoryDisplay(cat).toLowerCase();
+  if (label === 'power / display') return TG_CATEGORY_COLORS.power;
+  if (label === 'network') return TG_CATEGORY_COLORS.network;
+  if (label === 'performance') return TG_CATEGORY_COLORS.performance;
+  if (label === 'software / crash') return TG_CATEGORY_COLORS.software;
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) { hash = (hash * 31 + label.charCodeAt(i)) >>> 0; }
+  return TG_EXTRA_PALETTE[hash % TG_EXTRA_PALETTE.length];
+}
+function tgHexToRgba(hex, alpha) {
+  const h = hex.replace('#', '');
+  const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+/* Every category label currently in use, so the filter pills and the
+   Add/Edit form's suggestions include any custom category someone typed,
+   not just the 4 defaults. */
+function tgAllCategoryLabels() {
+  const set = new Set(TG_DEFAULT_CATEGORIES);
+  troubleshootingEntries.forEach(e => set.add(tgCategoryDisplay(e.category)));
+  return Array.from(set).sort();
 }
 function genTgId() { return 'tg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); }
 
@@ -6070,7 +6115,7 @@ let tgDraft = null;  // in-progress add/edit draft
 let tgEditingId = null; // id being edited, or null when adding a new entry
 
 function tgNewDraft() {
-  return { title: '', category: 'power', symptom: '', steps: [{ text: '', alts: [] }], altSteps: [], notes: '' };
+  return { title: '', category: '', symptom: '', steps: [{ text: '', alts: [] }], altSteps: [], notes: '' };
 }
 function tgEntryById(id) { return troubleshootingEntries.find(e => e.id === id); }
 
@@ -6083,9 +6128,9 @@ function renderTroubleshootingGuide() {
 function renderTgFilters() {
   const wrap = document.getElementById('tgFilters');
   if (!wrap) return;
-  const pills = [{ key: 'all', label: 'All' }, ...TG_CATEGORIES];
+  const pills = [{ val: 'all', label: 'All' }, ...tgAllCategoryLabels().map(l => ({ val: l, label: l }))];
   wrap.innerHTML = pills.map(p => `
-    <button type="button" class="tg-filter-pill${tgCategoryFilter === p.key ? ' active' : ''}" data-cat="${p.key}">${escapeHtml(p.label)}</button>
+    <button type="button" class="tg-filter-pill${tgCategoryFilter === p.val ? ' active' : ''}" data-cat="${escapeHtml(p.val)}">${escapeHtml(p.label)}</button>
   `).join('');
 }
 
@@ -6093,9 +6138,9 @@ function tgFilteredEntries() {
   const searchEl = document.getElementById('tgSearchBox');
   const term = (searchEl ? searchEl.value : '').trim().toLowerCase();
   return troubleshootingEntries.filter(e => {
-    if (tgCategoryFilter !== 'all' && e.category !== tgCategoryFilter) return false;
+    if (tgCategoryFilter !== 'all' && tgCategoryDisplay(e.category) !== tgCategoryFilter) return false;
     if (!term) return true;
-    const haystack = [e.title, e.symptom, tgCategoryLabel(e.category)].join(' ').toLowerCase();
+    const haystack = [e.title, e.symptom, tgCategoryDisplay(e.category)].join(' ').toLowerCase();
     return haystack.includes(term);
   }).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 }
@@ -6113,10 +6158,10 @@ function renderTgList() {
   }
   list.innerHTML = filtered.map(e => `
     <button type="button" class="tg-entry-item${(e.id === tgSelectedId && tgMode === 'view') ? ' active' : ''}" data-id="${e.id}">
-      <span class="tg-entry-dot cat-${e.category}"></span>
+      <span class="tg-entry-dot" style="background:${tgCategoryColor(e.category)};"></span>
       <span class="tg-entry-info">
         <span class="tg-entry-title">${escapeHtml(e.title || '(Untitled)')}</span>
-        <span class="tg-entry-cat">${escapeHtml(tgCategoryLabel(e.category))}</span>
+        <span class="tg-entry-cat">${escapeHtml(tgCategoryDisplay(e.category))}</span>
       </span>
       <span class="tg-entry-chevron">&rsaquo;</span>
     </button>
@@ -6128,7 +6173,8 @@ function tgArrow() { return '<div class="tg-arrow">&darr;</div>'; }
 function tgBoxHtml(kind, category, title, text) {
   if (kind === 'start') return `<div class="tg-box tg-box-start">Start</div>`;
   if (kind === 'resolved') return `<div class="tg-box tg-box-resolved">Resolved</div>`;
-  return `<div class="tg-box cat-${category}"><div class="tg-box-title">${escapeHtml(title)}</div><div class="tg-box-text">${escapeHtml(text)}</div></div>`;
+  const color = tgCategoryColor(category);
+  return `<div class="tg-box" style="border-color:${color}; background:${tgHexToRgba(color, 0.06)};"><div class="tg-box-title" style="color:${color};">${escapeHtml(title)}</div><div class="tg-box-text">${escapeHtml(text)}</div></div>`;
 }
 function tgDiamondHtml() { return `<div class="tg-diamond"><span>Worked?</span></div>`; }
 
@@ -6188,9 +6234,10 @@ function renderTgDetail() {
     detail.innerHTML = `<div class="tg-detail-empty">Walang napiling entry.<br>Pumili sa listahan sa kaliwa, o gumawa ng bago.</div>`;
     return;
   }
+  const tgCatColor = tgCategoryColor(entry.category);
   detail.innerHTML = `
     <div class="tg-detail-top">
-      <span class="tg-badge cat-${entry.category}">${escapeHtml(tgCategoryLabel(entry.category))}</span>
+      <span class="tg-badge" style="background:${tgHexToRgba(tgCatColor, 0.12)}; border:1px solid ${tgHexToRgba(tgCatColor, 0.4)}; color:${tgCatColor};">${escapeHtml(tgCategoryDisplay(entry.category))}</span>
       <div class="tg-detail-actions viewer-hide">
         <button type="button" class="tg-icon-btn" data-action="tg-edit" data-id="${entry.id}" title="Edit">&#9998;</button>
         <button type="button" class="tg-icon-btn danger" data-action="tg-delete" data-id="${entry.id}" title="Delete">&#128465;</button>
@@ -6216,7 +6263,7 @@ function tgOpenEdit(id) {
   if (!entry) return;
   tgDraft = {
     title: entry.title || '',
-    category: entry.category || 'power',
+    category: entry.category || '',
     symptom: entry.symptom || '',
     steps: (entry.steps && entry.steps.length ? entry.steps : [{ text: '', alts: [] }]).map(s => ({ text: s.text || '', alts: (s.alts || []).slice() })),
     altSteps: (entry.altSteps || []).slice(),
@@ -6315,9 +6362,8 @@ function renderTgForm() {
       </div>
       <div class="tg-form-row">
         <label for="tgFormCategory">Category</label>
-        <select id="tgFormCategory" class="field-select">
-          ${TG_CATEGORIES.map(c => `<option value="${c.key}"${c.key === d.category ? ' selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
-        </select>
+        <input type="text" id="tgFormCategory" list="tgCategoryOptionsList" placeholder="e.g. Power / Display -- o mag-type ng sarili" value="${escapeHtml(d.category ? tgCategoryDisplay(d.category) : '')}">
+        <datalist id="tgCategoryOptionsList">${tgAllCategoryLabels().map(l => `<option value="${escapeHtml(l)}">`).join('')}</datalist>
       </div>
       <div class="tg-form-row">
         <label for="tgFormSymptom">Symptom</label>
@@ -6358,7 +6404,7 @@ async function tgSave() {
     .map(s => ({ text: (s.text || '').trim(), alts: (s.alts || []).map(a => (a || '').trim()).filter(Boolean) }))
     .filter(s => s.text);
   const cleanAltSteps = (d.altSteps || []).map(a => (a || '').trim()).filter(Boolean);
-  const category = d.category || 'power';
+  const category = (d.category || '').trim() || 'Uncategorized';
   const symptom = (d.symptom || '').trim();
   const notes = (d.notes || '').trim();
 
