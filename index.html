@@ -19,6 +19,8 @@
     --green: #4fbf7a;
     --amber: #e08a3c;
     --red: #ef5b60;
+    --tg-blue: #5b8def;
+    --tg-purple: #9b6fd6;
   }
   * { box-sizing: border-box; }
   body {
@@ -706,6 +708,122 @@
   .cmt-stub .cmt-val { font-weight: 700; font-size: 13px; margin-top: 2px; }
   .cmt-empty { display: none; text-align: center; color: var(--muted); padding: 50px 0; font-size: 13px; }
   .cmt-footnote { color: var(--muted); font-size: 12px; margin-top: 24px; line-height: 1.6; max-width: 80ch; }
+
+  /* ---------- TROUBLESHOOTING GUIDE ---------- */
+  .tg-wrap { display: flex; gap: 20px; align-items: flex-start; }
+  .tg-sidebar { width: 280px; flex-shrink: 0; }
+  .tg-search { margin-bottom: 10px; }
+  .tg-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .tg-filter-pill {
+    padding: 5px 13px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--panel2); color: var(--muted); font-size: 12.5px;
+    cursor: pointer; font-weight: 600;
+  }
+  .tg-filter-pill:hover { color: var(--text); }
+  .tg-filter-pill.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .tg-entry-list { display: flex; flex-direction: column; gap: 3px; }
+  .tg-entry-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border-radius: 8px; cursor: pointer; border: 1px solid transparent; background: none;
+    width: 100%; text-align: left; color: var(--text);
+  }
+  .tg-entry-item:hover { background: var(--panel2); }
+  .tg-entry-item.active { background: var(--panel2); border-color: var(--border); }
+  .tg-entry-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tg-entry-dot.cat-power { background: var(--red); }
+  .tg-entry-dot.cat-network { background: var(--tg-blue); }
+  .tg-entry-dot.cat-performance { background: var(--amber); }
+  .tg-entry-dot.cat-software { background: var(--tg-purple); }
+  .tg-entry-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; min-width: 0; }
+  .tg-entry-title { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tg-entry-cat { font-size: 11.5px; color: var(--muted); }
+  .tg-entry-chevron { margin-left: auto; color: var(--muted); flex-shrink: 0; }
+  .tg-newbtn { width: 100%; margin-top: 14px; }
+  .tg-empty-sidebar { text-align: center; color: var(--muted); padding: 24px 10px; font-size: 13px; }
+  .tg-detail {
+    flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 26px;
+  }
+  .tg-detail-empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+  .tg-detail-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .tg-detail-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .tg-icon-btn {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel2); color: var(--text); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; padding: 0;
+  }
+  .tg-icon-btn.danger { color: var(--red); border-color: rgba(239,91,96,0.4); }
+  .tg-icon-btn.danger:hover { background: rgba(239,91,96,0.1); }
+  .tg-badge {
+    display: inline-block; padding: 3px 11px; border-radius: 6px; font-size: 11.5px;
+    font-weight: 700; letter-spacing: .02em;
+  }
+  .tg-badge.cat-power { background: rgba(239,91,96,0.12); border: 1px solid rgba(239,91,96,0.4); color: var(--red); }
+  .tg-badge.cat-network { background: rgba(91,141,239,0.12); border: 1px solid rgba(91,141,239,0.4); color: var(--tg-blue); }
+  .tg-badge.cat-performance { background: rgba(224,138,60,0.12); border: 1px solid rgba(224,138,60,0.4); color: var(--amber); }
+  .tg-badge.cat-software { background: rgba(155,111,214,0.12); border: 1px solid rgba(155,111,214,0.4); color: var(--tg-purple); }
+  .tg-title { font-size: 22px; font-weight: 700; margin: 12px 0 4px; }
+  .tg-symptom { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .tg-steps-label { font-weight: 700; margin-bottom: 16px; }
+  .tg-flow { display: flex; flex-direction: column; align-items: center; }
+  .tg-box {
+    width: 100%; max-width: 480px; border-radius: 10px; padding: 14px 18px;
+    text-align: center; border: 1.5px solid var(--border); background: var(--panel2);
+  }
+  .tg-box-title { font-weight: 700; font-size: 13.5px; margin-bottom: 4px; }
+  .tg-box-text { font-size: 13px; line-height: 1.4; }
+  .tg-box-start { font-weight: 700; font-size: 13.5px; }
+  .tg-box-resolved { background: rgba(79,191,122,0.12); border-color: var(--green); color: var(--green); font-weight: 700; }
+  .tg-box.cat-power { border-color: var(--red); background: rgba(239,91,96,0.06); }
+  .tg-box.cat-power .tg-box-title { color: var(--red); }
+  .tg-box.cat-network { border-color: var(--tg-blue); background: rgba(91,141,239,0.06); }
+  .tg-box.cat-network .tg-box-title { color: var(--tg-blue); }
+  .tg-box.cat-performance { border-color: var(--amber); background: rgba(224,138,60,0.06); }
+  .tg-box.cat-performance .tg-box-title { color: var(--amber); }
+  .tg-box.cat-software { border-color: var(--tg-purple); background: rgba(155,111,214,0.06); }
+  .tg-box.cat-software .tg-box-title { color: var(--tg-purple); }
+  .tg-arrow { color: var(--muted); font-size: 17px; line-height: 1; padding: 3px 0; }
+  .tg-diamond {
+    width: 104px; height: 104px; border: 1.5px solid var(--accent); background: rgba(226,178,60,0.10);
+    transform: rotate(45deg); display: flex; align-items: center; justify-content: center;
+    margin: 6px 0; flex-shrink: 0;
+  }
+  .tg-diamond span { transform: rotate(-45deg); font-weight: 700; font-size: 12.5px; color: var(--accent); text-align: center; }
+  .tg-branch {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 28px; width: 100%; max-width: 480px;
+    margin: 2px 0; align-items: stretch;
+  }
+  .tg-branch-col { display: flex; flex-direction: column; align-items: center; }
+  .tg-branch-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .05em; margin-bottom: 4px; }
+  .tg-branch-yes .tg-branch-line { flex: 1; width: 0; border-left: 2px solid var(--border); min-height: 24px; }
+  .tg-branch-no { gap: 0; }
+  .tg-branch-no .tg-box { max-width: none; }
+  .tg-alt-note { font-size: 12px; color: var(--muted); }
+
+  .tg-form { max-width: 720px; }
+  .tg-form-row { margin-bottom: 16px; }
+  .tg-form-row label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+  .tg-form-section {
+    border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; background: var(--panel2);
+  }
+  .tg-form-section-title { font-weight: 700; margin-bottom: 12px; font-size: 14px; }
+  .tg-step-row {
+    display: flex; gap: 8px; align-items: flex-start; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px;
+  }
+  .tg-step-main { flex: 1; min-width: 0; }
+  .tg-step-controls { display: flex; flex-direction: column; gap: 4px; }
+  .tg-mini-btn {
+    width: 28px; height: 26px; padding: 0; font-size: 12px; border-radius: 6px;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+  }
+  .tg-mini-btn.danger { color: var(--red); }
+  .tg-alt-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; margin-left: 4px; }
+  .tg-alt-row input { flex: 1; }
+  .tg-alt-label { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+  .tg-add-alt-btn { align-self: flex-start; margin-top: 6px; }
+  .tg-form-actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+
 </style>
 </head>
 <body>
@@ -860,6 +978,7 @@
       <button class="grouptab-btn" data-grouptab="anydesk">AnyDesk ID's</button>
       <button class="grouptab-btn" id="phoneDutiesGroupTabBtn" data-grouptab="phoneduties">OB Phone Duties</button>
       <button class="grouptab-btn" data-grouptab="landbased">Landbased Accounts</button>
+      <button class="grouptab-btn" data-grouptab="troubleshooting">Troubleshooting Guide</button>
     </div>
   <!-- SITES TAB -->
   <div class="grouptab-panel active" id="tab-sites">
@@ -1190,6 +1309,19 @@
 
     <div class="lws-list" id="landbasedTableBody">
       <div class="lws-empty">No accounts found.</div>
+    </div>
+  </div>
+
+  <!-- TROUBLESHOOTING GUIDE TAB -->
+  <div class="grouptab-panel" id="tab-troubleshooting">
+    <div class="tg-wrap">
+      <div class="tg-sidebar">
+        <input type="text" id="tgSearchBox" class="tg-search" placeholder="Search entries">
+        <div class="tg-filters" id="tgFilters"></div>
+        <div class="tg-entry-list" id="tgEntryList"></div>
+        <button class="tg-newbtn viewer-hide" id="tgNewBtn">+ New Entry</button>
+      </div>
+      <div class="tg-detail" id="tgDetail"></div>
     </div>
   </div>
   </div>
@@ -1890,6 +2022,7 @@ let phoneDuties = [];
 let activityLog = [];
 let userProfiles = [];
 let landbasedAccounts = [];
+let troubleshootingEntries = [];
 
 /* Set from the Supabase Auth session once login resolves (see the LOGIN
    section near the bottom of this script) — the logged-in user's email. */
@@ -2061,7 +2194,8 @@ const ENTITY_TABLE = {
   anydeskIds: 'anydesk_ids',
   phoneDuties: 'phone_duties',
   userProfiles: 'user_profiles',
-  landbasedAccounts: 'landbased_accounts'
+  landbasedAccounts: 'landbased_accounts',
+  troubleshootingEntries: 'troubleshooting_entries'
 };
 
 const ENTITY_LABEL = {
@@ -2074,7 +2208,8 @@ const ENTITY_LABEL = {
   anydeskIds: "AnyDesk ID's",
   phoneDuties: 'OB Phone Duties',
   userProfiles: 'User Accounts',
-  landbasedAccounts: 'Landbased Accounts'
+  landbasedAccounts: 'Landbased Accounts',
+  troubleshootingEntries: 'Troubleshooting Guide'
 };
 
 /* Picks a short, human-readable label for a row so the Activity Log
@@ -2092,6 +2227,7 @@ function labelFor(entity, row) {
     case 'phoneDuties': return [row.dateCovered || '', row.onDuty ? `(${row.onDuty})` : ''].filter(Boolean).join(' ');
     case 'userProfiles': return row.email || '';
     case 'landbasedAccounts': return [row.site, row.username].filter(Boolean).join(' - ');
+    case 'troubleshootingEntries': return row.title || '';
     default: return '';
   }
 }
@@ -2108,6 +2244,7 @@ function entityArray(entity) {
     case 'phoneDuties': return phoneDuties;
     case 'userProfiles': return userProfiles;
     case 'landbasedAccounts': return landbasedAccounts;
+    case 'troubleshootingEntries': return troubleshootingEntries;
     default: return [];
   }
 }
@@ -2135,7 +2272,8 @@ const FIELD_MAP = {
   systemUnits: { id:'id', branch:'branch', terminal:'terminal', serial:'serial', pagcor:'pagcor', mac:'mac', processor:'processor', storage:'storage', memory:'memory', datePurchase:'date_purchase', anydesk:'anydesk', remarks:'remarks', team:'team' },
   phoneDuties: { id:'id', month:'month', dateCovered:'date_covered', onDuty:'on_duty', backup:'backup', remarks:'remarks', team:'team' },
   userProfiles: { id:'id', email:'email', role:'role', team:'team' },
-  landbasedAccounts: { id:'id', site:'site', accountNo:'account_no', username:'username', mobileNumber:'mobile_number', operator:'operator', remarks:'remarks', team:'team' }
+  landbasedAccounts: { id:'id', site:'site', accountNo:'account_no', username:'username', mobileNumber:'mobile_number', operator:'operator', remarks:'remarks', team:'team' },
+  troubleshootingEntries: { id:'id', title:'title', category:'category', symptom:'symptom', steps:'steps', altSteps:'alt_steps', notes:'notes' }
 };
 
 const TEAM_OPTIONS = ['TSE', 'GA', 'AM', 'ADMIN'];
@@ -2249,14 +2387,15 @@ async function loadEntity(entity) {
 }
 
 async function loadAllData() {
-  [tasks, sites, inventory, monitors, systemUnits, lakiwinSites, anydeskIds, phoneDuties, activityLog, userProfiles, landbasedAccounts] = await Promise.all([
+  [tasks, sites, inventory, monitors, systemUnits, lakiwinSites, anydeskIds, phoneDuties, activityLog, userProfiles, landbasedAccounts, troubleshootingEntries] = await Promise.all([
     loadEntity('tasks'), loadEntity('sites'), loadEntity('inventory'),
     loadEntity('monitors'), loadEntity('systemUnits'),
     loadEntity('lakiwinSites'), loadEntity('anydeskIds'),
     loadEntity('phoneDuties'),
     loadActivityLog(),
     loadEntity('userProfiles'),
-    loadEntity('landbasedAccounts')
+    loadEntity('landbasedAccounts'),
+    loadEntity('troubleshootingEntries')
   ]);
 }
 
@@ -2278,11 +2417,12 @@ function renderAll() {
   renderActivityLog();
   renderAdminTab();
   renderLandbasedAccounts();
+  renderTroubleshootingGuide();
 }
 
 function subscribeRealtime() {
-  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', phone_duties:'phoneDuties', user_profiles:'userProfiles', landbased_accounts:'landbasedAccounts' };
-  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, phoneDuties: renderPhoneDuties, userProfiles: renderAdminTab, landbasedAccounts: renderLandbasedAccounts };
+  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', phone_duties:'phoneDuties', user_profiles:'userProfiles', landbased_accounts:'landbasedAccounts', troubleshooting_entries:'troubleshootingEntries' };
+  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, phoneDuties: renderPhoneDuties, userProfiles: renderAdminTab, landbasedAccounts: renderLandbasedAccounts, troubleshootingEntries: renderTroubleshootingGuide };
   sb.channel('tse-tracker-changes')
     .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
       if (payload.table === 'activity_log') {
@@ -2308,6 +2448,7 @@ function subscribeRealtime() {
         else if (entity === 'phoneDuties') phoneDuties = rows;
         else if (entity === 'userProfiles') userProfiles = rows;
         else if (entity === 'landbasedAccounts') landbasedAccounts = rows;
+        else if (entity === 'troubleshootingEntries') troubleshootingEntries = rows;
         rendererByEntity[entity]();
       } catch (err) {
         console.error('realtime refresh failed', entity, err);
@@ -5908,6 +6049,427 @@ const amScheduleModule = createScheduleModule('AM', {
   calTodayBtn: 'amCalTodayBtn', calDayPanel: 'amCalDayPanel', calDayPanelTitle: 'amCalDayPanelTitle',
   calDayPanelList: 'amCalDayPanelList', calDayPanelClose: 'amCalDayPanelClose'
 });
+
+/* ---------- TROUBLESHOOTING GUIDE ---------- */
+const TG_CATEGORIES = [
+  { key: 'power', label: 'Power / Display' },
+  { key: 'network', label: 'Network' },
+  { key: 'performance', label: 'Performance' },
+  { key: 'software', label: 'Software / Crash' }
+];
+function tgCategoryLabel(key) {
+  const c = TG_CATEGORIES.find(c => c.key === key);
+  return c ? c.label : (key || '');
+}
+function genTgId() { return 'tg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); }
+
+let tgSelectedId = null;
+let tgCategoryFilter = 'all';
+let tgMode = 'view'; // 'view' | 'form'
+let tgDraft = null;  // in-progress add/edit draft
+let tgEditingId = null; // id being edited, or null when adding a new entry
+
+function tgNewDraft() {
+  return { title: '', category: 'power', symptom: '', steps: [{ text: '', alts: [] }], altSteps: [], notes: '' };
+}
+function tgEntryById(id) { return troubleshootingEntries.find(e => e.id === id); }
+
+function renderTroubleshootingGuide() {
+  renderTgFilters();
+  renderTgList();
+  renderTgDetail();
+}
+
+function renderTgFilters() {
+  const wrap = document.getElementById('tgFilters');
+  if (!wrap) return;
+  const pills = [{ key: 'all', label: 'All' }, ...TG_CATEGORIES];
+  wrap.innerHTML = pills.map(p => `
+    <button type="button" class="tg-filter-pill${tgCategoryFilter === p.key ? ' active' : ''}" data-cat="${p.key}">${escapeHtml(p.label)}</button>
+  `).join('');
+}
+
+function tgFilteredEntries() {
+  const searchEl = document.getElementById('tgSearchBox');
+  const term = (searchEl ? searchEl.value : '').trim().toLowerCase();
+  return troubleshootingEntries.filter(e => {
+    if (tgCategoryFilter !== 'all' && e.category !== tgCategoryFilter) return false;
+    if (!term) return true;
+    const haystack = [e.title, e.symptom, tgCategoryLabel(e.category)].join(' ').toLowerCase();
+    return haystack.includes(term);
+  }).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+}
+
+function renderTgList() {
+  const list = document.getElementById('tgEntryList');
+  if (!list) return;
+  const filtered = tgFilteredEntries();
+  if (!troubleshootingEntries.find(e => e.id === tgSelectedId)) {
+    tgSelectedId = filtered[0] ? filtered[0].id : null;
+  }
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="tg-empty-sidebar">No entries found.</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(e => `
+    <button type="button" class="tg-entry-item${(e.id === tgSelectedId && tgMode === 'view') ? ' active' : ''}" data-id="${e.id}">
+      <span class="tg-entry-dot cat-${e.category}"></span>
+      <span class="tg-entry-info">
+        <span class="tg-entry-title">${escapeHtml(e.title || '(Untitled)')}</span>
+        <span class="tg-entry-cat">${escapeHtml(tgCategoryLabel(e.category))}</span>
+      </span>
+      <span class="tg-entry-chevron">&rsaquo;</span>
+    </button>
+  `).join('');
+}
+
+function tgArrow() { return '<div class="tg-arrow">&darr;</div>'; }
+
+function tgBoxHtml(kind, category, title, text) {
+  if (kind === 'start') return `<div class="tg-box tg-box-start">Start</div>`;
+  if (kind === 'resolved') return `<div class="tg-box tg-box-resolved">Resolved</div>`;
+  return `<div class="tg-box cat-${category}"><div class="tg-box-title">${escapeHtml(title)}</div><div class="tg-box-text">${escapeHtml(text)}</div></div>`;
+}
+function tgDiamondHtml() { return `<div class="tg-diamond"><span>Worked?</span></div>`; }
+
+/* Renders a decision branch: YES bypasses straight down (a plain connector
+   line), NO goes through a chain of alternative boxes before rejoining the
+   main flow. Used both for a single step's own alternatives and for the
+   whole-flow fallback after the last step. */
+function tgBranchHtml(category, altTexts, altLabelPrefix) {
+  const altBoxes = altTexts.map((text, i) => {
+    const arrow = i > 0 ? tgArrow() : '';
+    return arrow + tgBoxHtml('alt', category, `${altLabelPrefix} ${i + 1}`, text);
+  }).join('');
+  return `
+    <div class="tg-branch">
+      <div class="tg-branch-col tg-branch-yes">
+        <div class="tg-branch-label">YES</div>
+        <div class="tg-branch-line"></div>
+      </div>
+      <div class="tg-branch-col tg-branch-no">
+        <div class="tg-branch-label">NO</div>
+        ${tgArrow()}
+        ${altBoxes}
+      </div>
+    </div>`;
+}
+
+function tgFlowHtml(entry) {
+  const cat = entry.category;
+  let html = tgBoxHtml('start');
+  (entry.steps || []).forEach((step, idx) => {
+    html += tgArrow();
+    html += tgBoxHtml('step', cat, `Step ${idx + 1}`, step.text);
+    if (step.alts && step.alts.length > 0) {
+      html += tgArrow();
+      html += tgDiamondHtml();
+      html += tgBranchHtml(cat, step.alts, 'Alt');
+    }
+  });
+  html += tgArrow();
+  if (entry.altSteps && entry.altSteps.length > 0) {
+    html += tgDiamondHtml();
+    html += tgBranchHtml(cat, entry.altSteps, 'Alt');
+    html += tgArrow();
+    html += tgBoxHtml('resolved');
+  } else {
+    html += tgBoxHtml('resolved');
+  }
+  return html;
+}
+
+function renderTgDetail() {
+  const detail = document.getElementById('tgDetail');
+  if (!detail) return;
+  if (tgMode === 'form') { renderTgForm(); return; }
+  const entry = tgEntryById(tgSelectedId);
+  if (!entry) {
+    detail.innerHTML = `<div class="tg-detail-empty">Walang napiling entry.<br>Pumili sa listahan sa kaliwa, o gumawa ng bago.</div>`;
+    return;
+  }
+  detail.innerHTML = `
+    <div class="tg-detail-top">
+      <span class="tg-badge cat-${entry.category}">${escapeHtml(tgCategoryLabel(entry.category))}</span>
+      <div class="tg-detail-actions viewer-hide">
+        <button type="button" class="tg-icon-btn" data-action="tg-edit" data-id="${entry.id}" title="Edit">&#9998;</button>
+        <button type="button" class="tg-icon-btn danger" data-action="tg-delete" data-id="${entry.id}" title="Delete">&#128465;</button>
+      </div>
+    </div>
+    <div class="tg-title">${escapeHtml(entry.title || '(Untitled)')}</div>
+    <div class="tg-symptom">${entry.symptom ? escapeHtml(entry.symptom) : '&nbsp;'}</div>
+    <div class="tg-steps-label">Steps</div>
+    <div class="tg-flow">${tgFlowHtml(entry)}</div>
+    ${entry.notes ? `<div class="tg-form-section" style="margin-top:22px;"><div class="tg-form-section-title">Notes</div><div style="font-size:13.5px; color:var(--muted); white-space:pre-wrap;">${escapeHtml(entry.notes)}</div></div>` : ''}
+  `;
+}
+
+function tgOpenNew() {
+  tgDraft = tgNewDraft();
+  tgEditingId = null;
+  tgMode = 'form';
+  renderTgList();
+  renderTgDetail();
+}
+function tgOpenEdit(id) {
+  const entry = tgEntryById(id);
+  if (!entry) return;
+  tgDraft = {
+    title: entry.title || '',
+    category: entry.category || 'power',
+    symptom: entry.symptom || '',
+    steps: (entry.steps && entry.steps.length ? entry.steps : [{ text: '', alts: [] }]).map(s => ({ text: s.text || '', alts: (s.alts || []).slice() })),
+    altSteps: (entry.altSteps || []).slice(),
+    notes: entry.notes || ''
+  };
+  tgEditingId = id;
+  tgMode = 'form';
+  renderTgList();
+  renderTgDetail();
+}
+function tgCancelForm() {
+  tgDraft = null;
+  tgEditingId = null;
+  tgMode = 'view';
+  renderTgList();
+  renderTgDetail();
+}
+function tgMoveItem(arr, idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= arr.length) return;
+  const tmp = arr[idx];
+  arr[idx] = arr[newIdx];
+  arr[newIdx] = tmp;
+}
+
+function tgSyncDraftFromDom() {
+  if (!tgDraft) return;
+  const titleEl = document.getElementById('tgFormTitle');
+  if (titleEl) tgDraft.title = titleEl.value;
+  const catEl = document.getElementById('tgFormCategory');
+  if (catEl) tgDraft.category = catEl.value;
+  const symEl = document.getElementById('tgFormSymptom');
+  if (symEl) tgDraft.symptom = symEl.value;
+  const notesEl = document.getElementById('tgFormNotes');
+  if (notesEl) tgDraft.notes = notesEl.value;
+  document.querySelectorAll('.tg-step-text').forEach(input => {
+    const idx = Number(input.dataset.idx);
+    if (tgDraft.steps[idx]) tgDraft.steps[idx].text = input.value;
+  });
+  document.querySelectorAll('.tg-alt-text').forEach(input => {
+    const idx = Number(input.dataset.idx);
+    const altIdx = Number(input.dataset.altidx);
+    if (tgDraft.steps[idx] && tgDraft.steps[idx].alts[altIdx] !== undefined) {
+      tgDraft.steps[idx].alts[altIdx] = input.value;
+    }
+  });
+  document.querySelectorAll('.tg-fallback-text').forEach(input => {
+    const idx = Number(input.dataset.idx);
+    if (tgDraft.altSteps[idx] !== undefined) tgDraft.altSteps[idx] = input.value;
+  });
+}
+
+function renderTgForm() {
+  const detail = document.getElementById('tgDetail');
+  if (!detail || !tgDraft) return;
+  const d = tgDraft;
+  const stepsHtml = d.steps.map((step, i) => `
+    <div class="tg-step-row">
+      <div class="tg-step-controls">
+        <button type="button" class="tg-mini-btn" data-action="tg-step-up" data-idx="${i}" title="Move up">&uarr;</button>
+        <button type="button" class="tg-mini-btn" data-action="tg-step-down" data-idx="${i}" title="Move down">&darr;</button>
+        <button type="button" class="tg-mini-btn danger" data-action="tg-step-remove" data-idx="${i}" title="Remove">&times;</button>
+      </div>
+      <div class="tg-step-main">
+        <input type="text" class="tg-step-text" data-idx="${i}" placeholder="e.g. Restart the router and modem." value="${escapeHtml(step.text)}">
+        ${step.alts.map((alt, ai) => `
+          <div class="tg-alt-row">
+            <span class="tg-alt-label">or try:</span>
+            <input type="text" class="tg-alt-text" data-idx="${i}" data-altidx="${ai}" placeholder="Alternative for this step" value="${escapeHtml(alt)}">
+            <button type="button" class="tg-mini-btn danger" data-action="tg-alt-remove" data-idx="${i}" data-altidx="${ai}" title="Remove">&times;</button>
+          </div>
+        `).join('')}
+        <button type="button" class="secondary tg-add-alt-btn" data-action="tg-alt-add" data-idx="${i}">+ Add alternative</button>
+      </div>
+    </div>
+  `).join('');
+
+  const altStepsHtml = d.altSteps.map((text, i) => `
+    <div class="tg-step-row">
+      <div class="tg-step-controls">
+        <button type="button" class="tg-mini-btn" data-action="tg-fallback-up" data-idx="${i}" title="Move up">&uarr;</button>
+        <button type="button" class="tg-mini-btn" data-action="tg-fallback-down" data-idx="${i}" title="Move down">&darr;</button>
+        <button type="button" class="tg-mini-btn danger" data-action="tg-fallback-remove" data-idx="${i}" title="Remove">&times;</button>
+      </div>
+      <div class="tg-step-main">
+        <input type="text" class="tg-fallback-text" data-idx="${i}" placeholder="Fallback step" value="${escapeHtml(text)}">
+      </div>
+    </div>
+  `).join('');
+
+  detail.innerHTML = `
+    <div class="tg-form">
+      <div class="tg-form-row">
+        <label for="tgFormTitle">Title</label>
+        <input type="text" id="tgFormTitle" placeholder="e.g. No internet connection" value="${escapeHtml(d.title)}">
+      </div>
+      <div class="tg-form-row">
+        <label for="tgFormCategory">Category</label>
+        <select id="tgFormCategory" class="field-select">
+          ${TG_CATEGORIES.map(c => `<option value="${c.key}"${c.key === d.category ? ' selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="tg-form-row">
+        <label for="tgFormSymptom">Symptom</label>
+        <input type="text" id="tgFormSymptom" placeholder="e.g. Connected to Wi-Fi/LAN but no internet access." value="${escapeHtml(d.symptom)}">
+      </div>
+
+      <div class="tg-form-section">
+        <div class="tg-form-section-title">Steps</div>
+        <div id="tgStepsList">${stepsHtml}</div>
+        <button type="button" class="secondary" data-action="tg-step-add">+ Add step</button>
+      </div>
+
+      <div class="tg-form-section">
+        <div class="tg-form-section-title">Fallback steps (after all steps, kung hindi pa rin gumana)</div>
+        <div id="tgFallbackList">${altStepsHtml || '<div class="tg-alt-note">Wala pang fallback step &mdash; opsyonal ito.</div>'}</div>
+        <button type="button" class="secondary" data-action="tg-fallback-add" style="margin-top:8px;">+ Add fallback step</button>
+      </div>
+
+      <div class="tg-form-row">
+        <label for="tgFormNotes">Notes (optional)</label>
+        <textarea id="tgFormNotes" rows="3" style="width:100%; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--text); font-size:14px; font-family:inherit;">${escapeHtml(d.notes)}</textarea>
+      </div>
+
+      <div class="tg-form-actions">
+        <button type="button" id="tgSaveBtn">Save</button>
+        <button type="button" class="secondary" id="tgCancelBtn">Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
+async function tgSave() {
+  tgSyncDraftFromDom();
+  const d = tgDraft;
+  const title = (d.title || '').trim();
+  if (!title) { alert('Kailangan ng Title.'); return; }
+  const cleanSteps = d.steps
+    .map(s => ({ text: (s.text || '').trim(), alts: (s.alts || []).map(a => (a || '').trim()).filter(Boolean) }))
+    .filter(s => s.text);
+  const cleanAltSteps = (d.altSteps || []).map(a => (a || '').trim()).filter(Boolean);
+  const category = d.category || 'power';
+  const symptom = (d.symptom || '').trim();
+  const notes = (d.notes || '').trim();
+
+  if (tgEditingId) {
+    const id = tgEditingId;
+    const prev = troubleshootingEntries.slice();
+    const entry = tgEntryById(id);
+    if (entry) {
+      entry.title = title; entry.category = category; entry.symptom = symptom;
+      entry.steps = cleanSteps; entry.altSteps = cleanAltSteps; entry.notes = notes;
+    }
+    tgMode = 'view'; tgDraft = null; tgEditingId = null;
+    renderTroubleshootingGuide();
+    const result = await dbUpdate('troubleshootingEntries', id, { title, category, symptom, steps: cleanSteps, altSteps: cleanAltSteps, notes });
+    if (!result.ok) {
+      troubleshootingEntries = prev;
+      renderTroubleshootingGuide();
+    }
+  } else {
+    const id = genTgId();
+    const newEntry = { id, title, category, symptom, steps: cleanSteps, altSteps: cleanAltSteps, notes };
+    troubleshootingEntries.push(newEntry);
+    tgSelectedId = id;
+    tgMode = 'view'; tgDraft = null; tgEditingId = null;
+    renderTroubleshootingGuide();
+    const result = await dbInsert('troubleshootingEntries', newEntry);
+    if (!result.ok) {
+      troubleshootingEntries = troubleshootingEntries.filter(e => e.id !== id);
+      renderTroubleshootingGuide();
+    }
+  }
+}
+
+async function tgDeleteEntry(id) {
+  const entry = tgEntryById(id);
+  if (!entry) return;
+  if (!confirm(`Tanggalin ang "${entry.title}"?`)) return;
+  const prev = troubleshootingEntries.slice();
+  troubleshootingEntries = troubleshootingEntries.filter(e => e.id !== id);
+  if (tgSelectedId === id) tgSelectedId = null;
+  renderTroubleshootingGuide();
+  const result = await dbDelete('troubleshootingEntries', id, entry.title);
+  if (!result.ok) {
+    troubleshootingEntries = prev;
+    renderTroubleshootingGuide();
+  }
+}
+
+document.getElementById('tgSearchBox').addEventListener('input', renderTgList);
+document.getElementById('tgNewBtn').addEventListener('click', tgOpenNew);
+document.getElementById('tgFilters').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tg-filter-pill');
+  if (!btn) return;
+  tgCategoryFilter = btn.dataset.cat;
+  renderTgFilters();
+  renderTgList();
+});
+document.getElementById('tgEntryList').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tg-entry-item');
+  if (!btn) return;
+  tgSelectedId = btn.dataset.id;
+  tgMode = 'view';
+  renderTgList();
+  renderTgDetail();
+});
+document.getElementById('tgDetail').addEventListener('click', (e) => {
+  const editBtn = e.target.closest('[data-action="tg-edit"]');
+  if (editBtn) { tgOpenEdit(editBtn.dataset.id); return; }
+  const delBtn = e.target.closest('[data-action="tg-delete"]');
+  if (delBtn) { tgDeleteEntry(delBtn.dataset.id); return; }
+
+  const stepAdd = e.target.closest('[data-action="tg-step-add"]');
+  if (stepAdd) { tgSyncDraftFromDom(); tgDraft.steps.push({ text: '', alts: [] }); renderTgForm(); return; }
+  const stepRemove = e.target.closest('[data-action="tg-step-remove"]');
+  if (stepRemove) {
+    tgSyncDraftFromDom();
+    tgDraft.steps.splice(Number(stepRemove.dataset.idx), 1);
+    if (tgDraft.steps.length === 0) tgDraft.steps.push({ text: '', alts: [] });
+    renderTgForm();
+    return;
+  }
+  const stepUp = e.target.closest('[data-action="tg-step-up"]');
+  if (stepUp) { tgSyncDraftFromDom(); tgMoveItem(tgDraft.steps, Number(stepUp.dataset.idx), -1); renderTgForm(); return; }
+  const stepDown = e.target.closest('[data-action="tg-step-down"]');
+  if (stepDown) { tgSyncDraftFromDom(); tgMoveItem(tgDraft.steps, Number(stepDown.dataset.idx), 1); renderTgForm(); return; }
+
+  const altAdd = e.target.closest('[data-action="tg-alt-add"]');
+  if (altAdd) { tgSyncDraftFromDom(); tgDraft.steps[Number(altAdd.dataset.idx)].alts.push(''); renderTgForm(); return; }
+  const altRemove = e.target.closest('[data-action="tg-alt-remove"]');
+  if (altRemove) {
+    tgSyncDraftFromDom();
+    tgDraft.steps[Number(altRemove.dataset.idx)].alts.splice(Number(altRemove.dataset.altidx), 1);
+    renderTgForm();
+    return;
+  }
+
+  const fbAdd = e.target.closest('[data-action="tg-fallback-add"]');
+  if (fbAdd) { tgSyncDraftFromDom(); tgDraft.altSteps.push(''); renderTgForm(); return; }
+  const fbRemove = e.target.closest('[data-action="tg-fallback-remove"]');
+  if (fbRemove) { tgSyncDraftFromDom(); tgDraft.altSteps.splice(Number(fbRemove.dataset.idx), 1); renderTgForm(); return; }
+  const fbUp = e.target.closest('[data-action="tg-fallback-up"]');
+  if (fbUp) { tgSyncDraftFromDom(); tgMoveItem(tgDraft.altSteps, Number(fbUp.dataset.idx), -1); renderTgForm(); return; }
+  const fbDown = e.target.closest('[data-action="tg-fallback-down"]');
+  if (fbDown) { tgSyncDraftFromDom(); tgMoveItem(tgDraft.altSteps, Number(fbDown.dataset.idx), 1); renderTgForm(); return; }
+
+  const saveBtn = e.target.closest('#tgSaveBtn');
+  if (saveBtn) { tgSave(); return; }
+  const cancelBtn = e.target.closest('#tgCancelBtn');
+  if (cancelBtn) { tgCancelForm(); return; }
+});
+
 
 /* ---------- LOGIN (Supabase Auth) + INIT ---------- */
 /* Real per-user accounts replace the old shared passcode. Each TSE's
