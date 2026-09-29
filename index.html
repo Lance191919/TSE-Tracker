@@ -3267,7 +3267,7 @@ function renderSites() {
         <div class="lws-row-header" data-id="${s.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
           <span class="lws-name">${escapeHtml(s.name)}</span>
           ${s.cluster ? `<span class="lws-tag">${escapeHtml(s.cluster)}</span>` : ''}
-          ${doneStatusBadgeHtml(s.mark, 'Pending')}
+          ${markStatusBadgeHtml(s.id, s.mark)}
           <span class="lws-chevron">▾</span>
         </div>
         <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
@@ -3311,6 +3311,20 @@ async function updateSiteField(id, field, value) {
   }
 }
 
+async function toggleSiteMark(id) {
+  const site = sites.find(s => s.id === id);
+  if (!site) return;
+  const prevMark = site.mark;
+  const isDone = (site.mark || '').trim().toUpperCase().startsWith('DONE');
+  site.mark = isDone ? '' : 'DONE';
+  renderSites();
+  const result = await dbUpdate('sites', id, { mark: site.mark });
+  if (!result.ok) {
+    site.mark = prevMark;
+    renderSites();
+  }
+}
+
 document.getElementById('siteAddBtn').addEventListener('click', addSite);
 document.getElementById('siteTeamFilter').addEventListener('change', renderSites);
 document.getElementById('siteRefreshBtn').addEventListener('click', () => location.reload());
@@ -3327,6 +3341,8 @@ document.getElementById('siteImportFile').addEventListener('change', (e) => {
 document.getElementById('sitesTableBody').addEventListener('click', (e) => {
   const groupHeader = e.target.closest('[data-action="toggle-group"]');
   if (groupHeader) { toggleAccordionGroup(groupHeader, sitesGroupsExpanded); return; }
+  const markBtn = e.target.closest('button[data-action="toggle-mark"]');
+  if (markBtn) { toggleSiteMark(markBtn.dataset.id); return; }
   const rowHeader = e.target.closest('[data-action="toggle-row"]');
   if (rowHeader) { toggleAccordionRow(rowHeader, sitesExpanded); return; }
 });
@@ -5187,6 +5203,19 @@ function doneStatusBadgeHtml(value, fallbackLabel) {
   const isDone = val.toUpperCase().startsWith('DONE');
   const label = isDone ? '✓ ' + val : val;
   return `<span class="status-badge display-only ${isDone ? 'complete' : 'neutral'}">${escapeHtml(label)}</span>`;
+}
+
+/* Clickable version of the Done/Pending badge, used by PMS Status's "Mark"
+   column so a site's mark can be toggled with one click, the same way
+   Work Tracker's and Lakiwin's status badges work. Clicking toggles the
+   underlying "mark" value between 'DONE' and '' (shown as "Pending") —
+   any other free-text value already in "mark" is treated as not-done and
+   replaced with 'DONE' on the next click. */
+function markStatusBadgeHtml(id, value) {
+  const val = (value || '').trim();
+  const isDone = val.toUpperCase().startsWith('DONE');
+  const label = isDone ? ('✓ ' + val) : (val || 'Pending');
+  return `<button type="button" class="status-badge ${isDone ? 'complete' : 'pending'}" data-id="${id}" data-action="toggle-mark" title="Click to toggle Done / Pending">${escapeHtml(label)}</button>`;
 }
 
 function lwsField(label, id, field, value, span2, copyable) {
