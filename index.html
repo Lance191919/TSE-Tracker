@@ -5300,6 +5300,48 @@ function exportLakiwinSitesToExcel() {
   XLSX.writeFile(wb, `lakiwin_sites_${todayStr()}.xlsx`);
 }
 
+/* When a site is added in Lakiwin Sites, give it a starter row (site name
+   only, other fields blank for manual input) in AnyDesk ID's, Landbased
+   Accounts and the three Inventory sub-tabs. A tab that already has a row
+   for that site name (case-insensitive) is skipped, so nothing doubles up.
+   Only the manual "+ Add Site" button does this — Excel imports don't. */
+async function propagateLakiwinSite(site) {
+  const siteName = (site.siteName || '').trim();
+  if (!siteName) return [];
+  const team = (CURRENT_USER_TEAM && CURRENT_USER_TEAM !== 'ADMIN') ? CURRENT_USER_TEAM : 'TSE';
+  const norm = s => String(s || '').trim().toLowerCase();
+  const key = norm(siteName);
+  const newId = prefix => prefix + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const targets = [
+    { entity: 'anydeskIds', label: "AnyDesk ID's", field: 'site', get: () => anydeskIds, set: v => { anydeskIds = v; }, render: () => renderAnydeskIds(),
+      make: () => ({ id: newId('adid_'), site: siteName, terminal: '', anydeskId: '', type: '', remarks: '', hardwareAdd: '', urlStatus: '', team }) },
+    { entity: 'landbasedAccounts', label: 'Landbased Accounts', field: 'site', get: () => landbasedAccounts, set: v => { landbasedAccounts = v; }, render: () => renderLandbasedAccounts(),
+      make: () => ({ id: newId('lba_'), site: siteName, accountNo: '', username: '', mobileNumber: '', operator: (site.operator || '').trim(), remarks: '', team }) },
+    { entity: 'inventory', label: 'Inventory → Tablets', field: 'branch', get: () => inventory, set: v => { inventory = v; }, render: () => renderInventory(),
+      make: () => ({ id: newId('inv_'), branch: siteName, deviceName: '', serial: '', pagcor: '', mac: '', color: '', deviceType: '', anydesk: '', dateDeployed: '', datePurchase: '', note: '', alias: '', team }) },
+    { entity: 'monitors', label: 'Inventory → Monitors', field: 'branch', get: () => monitors, set: v => { monitors = v; }, render: () => renderMonitors(),
+      make: () => ({ id: newId('mon_'), branch: siteName, terminal: '', serial: '', pagcor: '', screenSize: '', brand: '', datePurchase: '', remarks: '', team }) },
+    { entity: 'systemUnits', label: 'Inventory → System Unit', field: 'branch', get: () => systemUnits, set: v => { systemUnits = v; }, render: () => renderSystemUnits(),
+      make: () => ({ id: newId('su_'), branch: siteName, terminal: '', serial: '', pagcor: '', mac: '', processor: '', storage: '', memory: '', datePurchase: '', anydesk: '', remarks: '', team }) }
+  ];
+  const added = [];
+  for (const t of targets) {
+    if (t.get().some(r => norm(r[t.field]) === key)) continue;
+    const row = t.make();
+    t.set(t.get().concat([row]));
+    t.render();
+    const result = await dbInsert(t.entity, row);
+    if (result.ok) {
+      added.push(t.label);
+    } else {
+      t.set(t.get().filter(r => r.id !== row.id));
+      t.render();
+    }
+  }
+  refreshBranchOptions();
+  return added;
+}
+
 async function addLakiwinSite() {
   const ids = ['lwsSiteName','lwsOperator','lwsOutletId','lwsGameOffering','lwsAddress',
     'lwsDateInstallation','lwsLaunchingDate','lwsContactPerson','lwsDesignation','lwsContactNumber',
@@ -5340,6 +5382,11 @@ async function addLakiwinSite() {
   if (!result.ok) {
     lakiwinSites = lakiwinSites.filter(s => s.id !== id);
     renderLakiwinSites();
+    return;
+  }
+  const added = await propagateLakiwinSite(newSite);
+  if (added.length) {
+    alert(`Naidagdag din ang "${siteName}" sa:\n• ${added.join('\n• ')}\n\nBuksan ang mga tab na iyon para i-fill in ang ibang detalye (hal. AnyDesk ID).`);
   }
 }
 
