@@ -6,6 +6,7 @@
 <title>TSE Tracker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root {
     --bg: #15130f;
@@ -824,6 +825,44 @@
   .tg-add-alt-btn { align-self: flex-start; margin-top: 6px; }
   .tg-form-actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
 
+  /* ---------- Reimbursement Map ---------- */
+  .rm-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 24px;
+  }
+  .rm-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .rm-sub { font-size: 13px; color: var(--muted); margin-bottom: 14px; max-width: 820px; }
+  .rm-toolbar { margin-bottom: 16px; }
+  .rm-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .rm-empty { color: var(--muted); font-size: 13px; padding: 14px; text-align: center; background: var(--panel2); border: 1px dashed var(--border); border-radius: 10px; }
+  .rm-file-line { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .rm-notice { margin-bottom: 14px; }
+  .rm-dates { display: flex; flex-direction: column; gap: 10px; }
+  .rm-date { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .rm-date-label { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+  .rm-leg { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid var(--border); font-size: 13px; }
+  .rm-leg:first-of-type { border-top: none; }
+  .rm-leg.missing .rm-leg-route { color: var(--amber); }
+  .rm-leg-route { flex: 1; min-width: 180px; }
+  .rm-thumb { width: 38px; height: 46px; flex: none; border-radius: 4px; overflow: hidden; background: var(--panel); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; }
+  .rm-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .rm-warn-tag { color: var(--amber); border-color: rgba(224,138,60,0.4); }
+  button.rm-small { padding: 6px 10px; font-size: 12.5px; }
+  .rm-section-title { font-size: 16px; margin: 0 0 12px; }
+  .rm-add-grid { grid-template-columns: 1.4fr 1.4fr 0.7fr auto; }
+  @media (max-width: 900px) { .rm-add-grid { grid-template-columns: 1fr; } }
+  .rm-add-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .rm-hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .rm-route-body { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-top: 14px; }
+  .rm-route-img { width: 240px; max-width: 100%; min-height: 60px; background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .rm-route-img img { width: 100%; height: auto; display: block; }
+  .rm-route-fields { flex: 1; min-width: 240px; margin-top: 0; }
+  .rm-muted { color: var(--muted); font-size: 12px; }
+  .rm-added-by { align-self: end; }
+
 </style>
 </head>
 <body>
@@ -979,6 +1018,7 @@
       <button class="grouptab-btn" id="phoneDutiesGroupTabBtn" data-grouptab="phoneduties">OB Phone Duties</button>
       <button class="grouptab-btn" data-grouptab="landbased">Landbased Accounts</button>
       <button class="grouptab-btn" data-grouptab="troubleshooting">Troubleshooting Guide</button>
+      <button class="grouptab-btn" data-grouptab="reimbmap">Reimbursement Map</button>
     </div>
   <!-- SITES TAB -->
   <div class="grouptab-panel active" id="tab-sites">
@@ -1323,6 +1363,63 @@
       </div>
       <div class="tg-detail" id="tgDetail"></div>
     </div>
+  </div>
+
+  <!-- REIMBURSEMENT MAP TAB -->
+  <div class="grouptab-panel" id="tab-reimbmap">
+    <div class="rm-card">
+      <div class="rm-title">Gumawa ng Map File para sa Reimbursement</div>
+      <div class="rm-sub">I-upload ang Reimbursement Excel. Babasahin ang MOTORCYCLE GASOLINE na bahagi (Date, Travel From, Travel To, Total KM), at ilalagay sa Word file ang screenshot ng bawat ruta mula sa Route Library sa ibaba — naka-grupo bawat petsa.</div>
+      <div class="toolbar rm-toolbar">
+        <button id="rmExcelBtn">⬆ Upload Reimbursement Excel</button>
+        <input type="file" id="rmExcelFile" accept=".xlsx,.xls" style="display:none;">
+        <label class="rm-check"><input type="checkbox" id="rmOnePerPage" checked> Isang petsa bawat page</label>
+        <button class="secondary" id="rmGenerateBtn" disabled>⬇ Generate Word File</button>
+        <button class="secondary" id="rmClearBtn" hidden>✕ Clear</button>
+      </div>
+      <div id="rmPreview"></div>
+    </div>
+
+    <h3 class="rm-section-title">Route Library</h3>
+    <div class="add-card" id="rmAddCard">
+      <div class="add-grid rm-add-grid">
+        <div class="field">
+          <label for="rmNewFrom">Travel From</label>
+          <input type="text" id="rmNewFrom" list="rmPlaceOptions" placeholder="e.g. MG2 Tower">
+        </div>
+        <div class="field">
+          <label for="rmNewTo">Travel To</label>
+          <input type="text" id="rmNewTo" list="rmPlaceOptions" placeholder="e.g. Berkeley">
+        </div>
+        <div class="field">
+          <label for="rmNewKm">KM</label>
+          <input type="text" id="rmNewKm" inputmode="decimal" placeholder="e.g. 11.5">
+        </div>
+        <div class="rm-add-actions">
+          <button type="button" id="rmNewUploadBtn">📷 Upload Screenshot</button>
+          <button type="button" class="secondary" id="rmNewPasteBtn">📋 Paste Screenshot</button>
+        </div>
+      </div>
+      <div class="rm-hint">Tip: Sa Google Maps, mag-screenshot ng directions (Win + Shift + S), tapos i-click ang "📋 Paste Screenshot" — o pindutin ang Ctrl + V habang nasa isa sa mga field sa itaas.</div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="num" id="statRmRoutes">0</div>
+        <div class="label">Routes sa Library</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="rmSearchBox" placeholder="Search route...">
+      <button class="secondary" id="rmRefreshBtn">🔄 Refresh</button>
+    </div>
+
+    <div class="lws-list" id="rmRouteList">
+      <div class="lws-empty">Wala pang route sa library.</div>
+    </div>
+    <datalist id="rmPlaceOptions"></datalist>
+    <input type="file" id="rmImageFile" accept="image/*" style="display:none;">
   </div>
   </div>
 
@@ -2195,7 +2292,8 @@ const ENTITY_TABLE = {
   phoneDuties: 'phone_duties',
   userProfiles: 'user_profiles',
   landbasedAccounts: 'landbased_accounts',
-  troubleshootingEntries: 'troubleshooting_entries'
+  troubleshootingEntries: 'troubleshooting_entries',
+  reimbRoutes: 'reimbursement_routes'
 };
 
 const ENTITY_LABEL = {
@@ -2209,7 +2307,8 @@ const ENTITY_LABEL = {
   phoneDuties: 'OB Phone Duties',
   userProfiles: 'User Accounts',
   landbasedAccounts: 'Landbased Accounts',
-  troubleshootingEntries: 'Troubleshooting Guide'
+  troubleshootingEntries: 'Troubleshooting Guide',
+  reimbRoutes: 'Reimbursement Map'
 };
 
 /* Picks a short, human-readable label for a row so the Activity Log
@@ -2228,6 +2327,7 @@ function labelFor(entity, row) {
     case 'userProfiles': return row.email || '';
     case 'landbasedAccounts': return [row.site, row.username].filter(Boolean).join(' - ');
     case 'troubleshootingEntries': return row.title || '';
+    case 'reimbRoutes': return [row.from, row.to].filter(Boolean).join(' → ');
     default: return '';
   }
 }
@@ -2245,6 +2345,7 @@ function entityArray(entity) {
     case 'userProfiles': return userProfiles;
     case 'landbasedAccounts': return landbasedAccounts;
     case 'troubleshootingEntries': return troubleshootingEntries;
+    case 'reimbRoutes': return reimbRoutes;
     default: return [];
   }
 }
@@ -2273,7 +2374,8 @@ const FIELD_MAP = {
   phoneDuties: { id:'id', month:'month', dateCovered:'date_covered', onDuty:'on_duty', backup:'backup', remarks:'remarks', team:'team' },
   userProfiles: { id:'id', email:'email', role:'role', team:'team' },
   landbasedAccounts: { id:'id', site:'site', accountNo:'account_no', username:'username', mobileNumber:'mobile_number', operator:'operator', remarks:'remarks', team:'team' },
-  troubleshootingEntries: { id:'id', title:'title', category:'category', symptom:'symptom', steps:'steps', altSteps:'alt_steps', notes:'notes' }
+  troubleshootingEntries: { id:'id', title:'title', category:'category', symptom:'symptom', steps:'steps', altSteps:'alt_steps', notes:'notes' },
+  reimbRoutes: { id:'id', from:'route_from', to:'route_to', km:'km', image:'image_data', imgW:'img_w', imgH:'img_h', createdBy:'created_by' }
 };
 
 const TEAM_OPTIONS = ['TSE', 'GA', 'AM', 'ADMIN'];
@@ -2418,6 +2520,7 @@ function renderAll() {
   renderAdminTab();
   renderLandbasedAccounts();
   renderTroubleshootingGuide();
+  renderReimbMap();
 }
 
 function subscribeRealtime() {
@@ -6594,6 +6697,7 @@ async function initApp() {
     await loadAllData();
     renderAll();
     subscribeRealtime();
+    rmLoadRoutes().then(renderReimbMap);
   } catch (err) {
     console.error('Failed to load data', err);
     setNotice('⚠️ Could not connect to the database. Check your connection and reload.', 'error');
@@ -6737,6 +6841,736 @@ document.getElementById('changePasswordCancelBtn').addEventListener('click', clo
 document.getElementById('changePasswordSubmitBtn').addEventListener('click', submitChangePassword);
 [document.getElementById('newPassword'), document.getElementById('confirmPassword')].forEach(el => {
   el.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitChangePassword(); });
+});
+
+/* ================= REIMBURSEMENT MAP — core (no DOM) ================= */
+const RM_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/* Route matching key: case-, space- and punctuation-insensitive, so
+   "Fsc Dasma" and "FSC  Dasma." count as the same place. Direction still
+   matters (A → B is a different route from B → A, different km). */
+function rmPlaceKey(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function rmRouteKey(from, to) { return rmPlaceKey(from) + ' >> ' + rmPlaceKey(to); }
+
+/* Excel date cell → {key:'YYYY-MM-DD', label:'Oct 07, 2026', mon:'OCT'}.
+   Read as raw serial numbers (not cellDates) and converted in UTC, so the
+   day never shifts because of the browser's timezone. */
+function rmDateInfo(y, m, d) {
+  const key = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  return { key, label: `${RM_MONTHS[m]} ${String(d).padStart(2, '0')}, ${y}`, mon: RM_MONTHS[m].toUpperCase() };
+}
+function rmParseDateCell(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number' && isFinite(v) && v > 20000 && v < 80000) {
+    const dt = new Date(Math.round((v - 25569) * 86400000));
+    return rmDateInfo(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
+  }
+  if (v instanceof Date && !isNaN(v.getTime())) return rmDateInfo(v.getFullYear(), v.getMonth(), v.getDate());
+  const s = String(v).trim();
+  if (!s) return null;
+  const num = Number(s);
+  if (isFinite(num) && num > 20000 && num < 80000) return rmParseDateCell(num);
+  const t = Date.parse(s);
+  if (!isNaN(t)) { const dt = new Date(t); return rmDateInfo(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
+  return null;
+}
+
+function rmCellText(v) { return v === null || v === undefined ? '' : String(v).trim(); }
+
+/* Reads the reimbursement form's MOTORCYCLE GASOLINE section:
+   DATE / TRAVEL FROM / TRAVEL TO / TOTAL KM, from the header row down to
+   the section's SUBTOTAL row. A blank DATE cell (merged cells) means
+   "same date as the row above". Returns null if no such table is found. */
+function rmParseWorkbook(wb) {
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+    let employee = '', covered = '';
+    rows.forEach(r => {
+      r.forEach((c, i) => {
+        const t = rmCellText(c).toUpperCase();
+        const firstAfter = () => { for (let j = i + 1; j < r.length; j++) { const x = rmCellText(r[j]); if (x) return x; } return ''; };
+        if (!employee && t.startsWith('EMPLOYEE NAME')) employee = firstAfter();
+        if (!covered && t.startsWith('COVERED DATE')) covered = firstAfter();
+      });
+    });
+
+    let start = rows.findIndex(r => r.some(c => /MOTORCYCLE\s+GASOLINE/i.test(rmCellText(c))));
+    if (start < 0) start = 0;
+    let headerIdx = -1;
+    for (let i = start; i < rows.length; i++) {
+      if (rows[i].some(c => /^TRAVEL\s*FROM$/i.test(rmCellText(c)))) { headerIdx = i; break; }
+    }
+    if (headerIdx < 0) continue;
+
+    const hdr = rows[headerIdx].map(c => rmCellText(c).toUpperCase());
+    const col = (re) => hdr.findIndex(h => re.test(h));
+    const dateCol = col(/^DATE$/), fromCol = col(/^TRAVEL\s*FROM$/), toCol = col(/^TRAVEL\s*TO$/), kmCol = col(/TOTAL\s*KM/);
+    if (fromCol < 0 || toCol < 0) continue;
+
+    const groups = new Map();
+    let current = null;
+    let legCount = 0;
+    for (let i = headerIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (r.some(c => /SUBTOTAL/i.test(rmCellText(c)))) break;
+      if (dateCol >= 0) {
+        const d = rmParseDateCell(r[dateCol]);
+        if (d) {
+          current = d;
+          if (!groups.has(d.key)) groups.set(d.key, { key: d.key, label: d.label, mon: d.mon, legs: [], dateCellCount: 0 });
+          groups.get(d.key).dateCellCount++;
+        }
+      }
+      const from = rmCellText(r[fromCol]);
+      const to = rmCellText(r[toCol]);
+      if (!from && !to) continue;
+      if (/^(START|END)$/i.test(from)) continue;
+      const kmRaw = kmCol >= 0 ? r[kmCol] : '';
+      const kmNum = parseFloat(kmRaw);
+      const d = current || { key: '0000-00-00', label: 'Walang petsa', mon: '' };
+      if (!groups.has(d.key)) groups.set(d.key, { key: d.key, label: d.label, mon: d.mon, legs: [], dateCellCount: 0 });
+      groups.get(d.key).legs.push({ from, to, km: isFinite(kmNum) ? Math.round(kmNum * 100) / 100 : null });
+      legCount++;
+    }
+    if (legCount === 0) continue;
+    const sorted = Array.from(groups.values()).filter(g => g.legs.length).sort((a, b) => a.key.localeCompare(b.key));
+    return { sheetName, employee, covered, groups: sorted, legCount };
+  }
+  return null;
+}
+
+/* ---------- Word (.docx) builder ---------- */
+function rmXmlEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+const RM_EMU_PER_IN = 914400;
+const RM_IMG_MAX_W = Math.round(2.68 * RM_EMU_PER_IN);   // same width as the current Word file's screenshots
+const RM_IMG_MAX_H = Math.round(3.75 * RM_EMU_PER_IN);   // keeps 2 rows of screenshots per page
+
+function rmImgExtent(w, h) {
+  const ratio = (w > 0 && h > 0) ? h / w : 1.2;
+  let cx = RM_IMG_MAX_W, cy = Math.round(cx * ratio);
+  if (cy > RM_IMG_MAX_H) { cy = RM_IMG_MAX_H; cx = Math.round(cy / ratio); }
+  return { cx, cy };
+}
+
+function rmDrawingXml(rid, docPrId, name, cx, cy) {
+  return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">` +
+    `<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>` +
+    `<wp:docPr id='${docPrId}' name='Picture ${docPrId}'/>` +
+    `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
+    `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:nvPicPr><pic:cNvPr id='${docPrId}' name='${rmXmlEsc(name)}'/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
+    `<a:ln w="6350"><a:solidFill><a:srgbClr val="BFBFBF"/></a:solidFill></a:ln></pic:spPr>` +
+    `</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+}
+
+/* Small bordered date label, like the boxes in the current Word file. */
+function rmDateLabelXml(label) {
+  const b = '<w:top w:val="single" w:sz="6" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="6" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="6" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="6" w:space="0" w:color="000000"/>';
+  return `<w:tbl><w:tblPr><w:tblW w:w="1900" w:type="dxa"/><w:jc w:val="center"/><w:tblBorders>${b}</w:tblBorders>` +
+    `<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr>` +
+    `<w:tblGrid><w:gridCol w:w="1900"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr><w:tc><w:tcPr><w:tcW w:w="1900" w:type="dxa"/></w:tcPr>` +
+    `<w:p><w:pPr><w:keepNext/><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>` +
+    `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${rmXmlEsc(label)}</w:t></w:r></w:p>` +
+    `</w:tc></w:tr></w:tbl>`;
+}
+
+function rmDataUrlParts(dataUrl) {
+  const m = /^data:image\/(png|jpe?g|gif|webp);base64,(.*)$/i.exec(dataUrl || '');
+  if (!m) return null;
+  let ext = m[1].toLowerCase();
+  if (ext === 'jpg') ext = 'jpeg';
+  return { ext, b64: m[2] };
+}
+
+/* groups: [{ label, items: [{ imageKey, dataUrl, w, h }] }]
+   One date per block: date label, then its screenshots two per row.
+   Same screenshot used on many dates is stored once in the file. */
+async function rmBuildDocx(groups, opts) {
+  const onePerPage = !opts || opts.onePerPage !== false;
+  const zip = new JSZip();
+  const media = new Map(); // imageKey → { rid, file }
+  let ridN = 10, picN = 1;
+  const body = [];
+  const relsImgs = [];
+  const exts = new Set();
+
+  groups.forEach((g, gi) => {
+    if (gi > 0 && onePerPage) body.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+    else if (gi > 0) body.push('<w:p><w:pPr><w:spacing w:before="0" w:after="120"/></w:pPr></w:p>');
+    body.push(rmDateLabelXml(g.label));
+    body.push('<w:p><w:pPr><w:keepNext/><w:spacing w:before="0" w:after="120"/></w:pPr></w:p>');
+    for (let i = 0; i < g.items.length; i += 2) {
+      const pair = g.items.slice(i, i + 2);
+      const runs = [];
+      pair.forEach((it, k) => {
+        const parts = rmDataUrlParts(it.dataUrl);
+        if (!parts) return;
+        let m = media.get(it.imageKey);
+        if (!m) {
+          const file = `image${media.size + 1}.${parts.ext === 'jpeg' ? 'jpeg' : parts.ext}`;
+          m = { rid: 'rId' + (ridN++), file };
+          media.set(it.imageKey, m);
+          zip.file('word/media/' + file, parts.b64, { base64: true });
+          relsImgs.push(`<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${file}"/>`);
+          exts.add(parts.ext);
+        }
+        const { cx, cy } = rmImgExtent(it.w, it.h);
+        if (k > 0) runs.push('<w:r><w:t xml:space="preserve">      </w:t></w:r>');
+        runs.push(rmDrawingXml(m.rid, picN, m.file, cx, cy));
+        picN++;
+      });
+      body.push(`<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="200"/></w:pPr>${runs.join('')}</w:p>`);
+    }
+  });
+
+  const sect = '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>';
+  const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
+    'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" ' +
+    'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+    'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    `<w:body>${body.join('')}${sect}</w:body></w:document>`;
+
+  const ctExt = { png: 'image/png', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
+  zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    Array.from(exts).map(e => `<Default Extension="${e}" ContentType="${ctExt[e]}"/>`).join('') +
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+    '</Types>');
+  zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+    '</Relationships>');
+  zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + relsImgs.join('') + '</Relationships>');
+  zip.file('word/document.xml', doc);
+  return zip.generateAsync({ type: (opts && opts.type) || 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+
+/* ---------- Reimbursement Map — UI ----------
+   Route Library rows live in public.reimbursement_routes (one Google Maps
+   screenshot per From → To route, stored as a data URL in image_data). The
+   list is loaded WITHOUT image_data so the tab stays light; screenshots are
+   fetched on demand (rmEnsureImages) and kept in rmImageCache. This table is
+   deliberately not part of loadAllData()/realtime, so a missing table (SQL
+   not run yet) can never break the rest of the app. */
+let reimbRoutes = [];
+let rmLoadError = '';
+let rmParsed = null;
+let rmRoutesExpanded = new Set();
+const rmImageCache = new Map();
+let rmImagePickCb = null;
+
+function genRmId() { return 'rr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); }
+function rmAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function rmFmtKm(km) { return (km === null || km === undefined || km === '' || isNaN(Number(km))) ? '' : `${Number(km)} km`; }
+function rmRouteLabel(r) { return `${r.from || '—'} → ${r.to || '—'}`; }
+function rmFindRoute(from, to) {
+  const key = rmRouteKey(from, to);
+  return reimbRoutes.find(r => rmRouteKey(r.from, r.to) === key) || null;
+}
+
+async function rmLoadRoutes() {
+  try {
+    const { data, error } = await sb.from('reimbursement_routes')
+      .select('id, route_from, route_to, km, img_w, img_h, created_by')
+      .order('route_from', { ascending: true });
+    if (error) throw error;
+    reimbRoutes = (data || []).map(row => {
+      const r = fromDbRow('reimbRoutes', row);
+      delete r.image;
+      return r;
+    });
+    rmLoadError = '';
+  } catch (err) {
+    console.error('Failed to load reimbursement routes', err);
+    rmLoadError = (err && err.message) ? err.message : 'unknown error';
+  }
+}
+
+async function rmEnsureImages(ids) {
+  const need = Array.from(new Set(ids)).filter(id => id && !rmImageCache.has(id));
+  for (let i = 0; i < need.length; i += 20) {
+    const chunk = need.slice(i, i + 20);
+    const { data, error } = await sb.from('reimbursement_routes').select('id, image_data').in('id', chunk);
+    if (error) throw error;
+    (data || []).forEach(row => { if (row.image_data) rmImageCache.set(row.id, row.image_data); });
+  }
+}
+
+/* Screenshot file/clipboard blob → { dataUrl, w, h }. Very large images are
+   scaled down to 1000px wide JPEG so the database row stays small. */
+function rmProcessImage(blob) {
+  return new Promise((resolve, reject) => {
+    if (!blob || !/^image\//.test(blob.type || '')) { reject(new Error('Hindi image ang napili.')); return; }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Hindi mabasa ang image.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Hindi mabasa ang image.'));
+      img.onload = () => {
+        let dataUrl = reader.result;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > 1000 || dataUrl.length > 700000) {
+          const scale = Math.min(1, 1000 / w);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+          w = canvas.width; h = canvas.height;
+        }
+        resolve({ dataUrl, w, h });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+function rmPickImageFile(cb) {
+  rmImagePickCb = cb;
+  const input = document.getElementById('rmImageFile');
+  input.value = '';
+  input.click();
+}
+
+async function rmReadClipboardImage() {
+  if (!navigator.clipboard || !navigator.clipboard.read) {
+    alert('Hindi suportado ng browser na ito ang Paste button. Gamitin ang "Upload Screenshot", o i-click ang isang field sa Route Library form at pindutin ang Ctrl + V.');
+    return null;
+  }
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const type = item.types.find(t => t.startsWith('image/'));
+      if (type) return await item.getType(type);
+    }
+    alert('Walang screenshot sa clipboard. Mag-screenshot muna (Win + Shift + S), tapos subukan ulit.');
+    return null;
+  } catch (err) {
+    console.error('clipboard read failed', err);
+    alert('Hindi mabasa ang clipboard. Kung may lumabas na "Allow" sa browser, i-click ito at subukan ulit.');
+    return null;
+  }
+}
+
+/* Adds a new route with its screenshot, or — if that From → To route is
+   already in the library — replaces its screenshot (after confirming). */
+async function rmSaveRoute(from, to, km, imgBlob) {
+  from = (from || '').trim(); to = (to || '').trim();
+  if (!from || !to) { alert('Kailangan ng Travel From at Travel To.'); return false; }
+  let img;
+  try { img = await rmProcessImage(imgBlob); } catch (err) { alert(err.message); return false; }
+  const kmNum = (km === '' || km === null || km === undefined || isNaN(parseFloat(km))) ? null : Math.round(parseFloat(km) * 100) / 100;
+
+  const existing = rmFindRoute(from, to);
+  if (existing) {
+    if (!confirm(`May screenshot na ang "${rmRouteLabel(existing)}". Palitan ito?`)) return false;
+    return rmSetRouteImage(existing.id, img, kmNum);
+  }
+  const id = genRmId();
+  const row = { id, from, to, km: kmNum, imgW: img.w, imgH: img.h, createdBy: CURRENT_USER_NAME || '' };
+  reimbRoutes.push(row);
+  rmImageCache.set(id, img.dataUrl);
+  renderReimbMap();
+  const result = await dbInsert('reimbRoutes', Object.assign({}, row, { image: img.dataUrl }));
+  if (!result.ok) {
+    reimbRoutes = reimbRoutes.filter(r => r.id !== id);
+    rmImageCache.delete(id);
+    renderReimbMap();
+    return false;
+  }
+  return true;
+}
+
+async function rmSetRouteImage(id, img, kmNum) {
+  const route = reimbRoutes.find(r => r.id === id);
+  if (!route) return false;
+  const prev = { imgW: route.imgW, imgH: route.imgH, km: route.km, data: rmImageCache.get(id) };
+  route.imgW = img.w; route.imgH = img.h;
+  const patch = { image: img.dataUrl, imgW: img.w, imgH: img.h };
+  if (kmNum !== null && kmNum !== undefined) { route.km = kmNum; patch.km = kmNum; }
+  rmImageCache.set(id, img.dataUrl);
+  renderReimbMap();
+  const result = await dbUpdate('reimbRoutes', id, patch);
+  if (!result.ok) {
+    route.imgW = prev.imgW; route.imgH = prev.imgH; route.km = prev.km;
+    if (prev.data) rmImageCache.set(id, prev.data); else rmImageCache.delete(id);
+    renderReimbMap();
+    return false;
+  }
+  return true;
+}
+
+async function rmUpdateRouteField(id, field, value) {
+  const route = reimbRoutes.find(r => r.id === id);
+  if (!route) return;
+  let val = value;
+  if (field === 'km') {
+    val = (value.trim() === '' || isNaN(parseFloat(value))) ? null : Math.round(parseFloat(value) * 100) / 100;
+  } else {
+    val = value.trim();
+    if (!val) { alert('Hindi puwedeng blangko ang Travel From / Travel To.'); renderReimbMap(); return; }
+    const nextFrom = field === 'from' ? val : route.from;
+    const nextTo = field === 'to' ? val : route.to;
+    const clash = reimbRoutes.find(r => r.id !== id && rmRouteKey(r.from, r.to) === rmRouteKey(nextFrom, nextTo));
+    if (clash) { alert(`May route na "${rmRouteLabel(clash)}" sa library.`); renderReimbMap(); return; }
+  }
+  const prevValue = route[field];
+  route[field] = val;
+  renderReimbMap();
+  const result = await dbUpdate('reimbRoutes', id, { [field]: val });
+  if (!result.ok) { route[field] = prevValue; renderReimbMap(); }
+}
+
+async function rmDeleteRoute(id) {
+  const route = reimbRoutes.find(r => r.id === id);
+  if (!route) return;
+  if (!confirm(`Tanggalin ang route na "${rmRouteLabel(route)}"? Hindi na ito maibabalik.`)) return;
+  const prev = reimbRoutes.slice();
+  reimbRoutes = reimbRoutes.filter(r => r.id !== id);
+  rmRoutesExpanded.delete(id);
+  renderReimbMap();
+  const result = await dbDelete('reimbRoutes', id, rmRouteLabel(route));
+  if (!result.ok) { reimbRoutes = prev; renderReimbMap(); }
+  else rmImageCache.delete(id);
+}
+
+/* ----- Excel upload + preview ----- */
+async function rmHandleExcel(file) {
+  try {
+    const data = new Uint8Array(await file.arrayBuffer());
+    const wb = XLSX.read(data, { type: 'array' });
+    const parsed = rmParseWorkbook(wb);
+    if (!parsed) {
+      alert('Walang nakitang MOTORCYCLE GASOLINE table (DATE / TRAVEL FROM / TRAVEL TO) sa file na ito.');
+      return;
+    }
+    parsed.fileName = file.name;
+    rmParsed = parsed;
+    renderReimbMap();
+    const ids = rmMatchedRouteIds();
+    if (ids.length) {
+      try { await rmEnsureImages(ids); } catch (err) { console.error(err); }
+      renderReimbMap();
+    }
+  } catch (err) {
+    alert('Hindi mabasa ang Excel file: ' + err.message);
+  }
+}
+
+function rmMatchedRouteIds() {
+  if (!rmParsed) return [];
+  const ids = [];
+  rmParsed.groups.forEach(g => g.legs.forEach(l => { const r = rmFindRoute(l.from, l.to); if (r) ids.push(r.id); }));
+  return Array.from(new Set(ids));
+}
+
+function rmLegStats() {
+  let legs = 0, missing = 0;
+  const missingRoutes = new Set();
+  if (rmParsed) rmParsed.groups.forEach(g => g.legs.forEach(l => {
+    legs++;
+    if (!rmFindRoute(l.from, l.to)) { missing++; missingRoutes.add(rmRouteKey(l.from, l.to)); }
+  }));
+  return { legs, missing, missingRoutes: missingRoutes.size };
+}
+
+function rmRenderPreview() {
+  const box = document.getElementById('rmPreview');
+  const genBtn = document.getElementById('rmGenerateBtn');
+  const clearBtn = document.getElementById('rmClearBtn');
+  if (!rmParsed) {
+    box.innerHTML = '<div class="rm-empty">Wala pang na-upload na Excel.</div>';
+    genBtn.disabled = true;
+    clearBtn.hidden = true;
+    return;
+  }
+  const st = rmLegStats();
+  genBtn.disabled = false;
+  clearBtn.hidden = false;
+  const head = [rmParsed.employee, rmParsed.covered, rmParsed.fileName].filter(Boolean).map(escapeHtml).join(' · ');
+  let html = `
+    <div class="rm-file-line">${head}</div>
+    <div class="summary">
+      <div class="stat"><div class="num">${rmParsed.groups.length}</div><div class="label">Petsa</div></div>
+      <div class="stat"><div class="num">${st.legs}</div><div class="label">Biyahe (legs)</div></div>
+      <div class="stat ${st.missing ? 'pending' : 'complete'}"><div class="num">${st.missingRoutes}</div><div class="label">Route na walang screenshot</div></div>
+    </div>`;
+  if (st.missing) {
+    html += `<div class="notice warn rm-notice">May ${st.missingRoutes} route na wala pang screenshot. Mag-upload o mag-paste ng screenshot sa route na may ✕ — isang beses lang bawat route, at magagamit na ito sa lahat ng petsa.</div>`;
+  }
+  html += '<div class="rm-dates">';
+  rmParsed.groups.forEach(g => {
+    const dupTag = g.dateCellCount > 1
+      ? `<span class="lws-tag rm-warn-tag" title="Lumabas ang petsang ito nang ${g.dateCellCount} beses sa DATE column — baka typo sa Excel.">⚠ ${g.dateCellCount}× sa Excel</span>`
+      : '';
+    html += `<div class="rm-date"><div class="rm-date-label"><span>${escapeHtml(g.label)}</span>${dupTag}</div>`;
+    g.legs.forEach(l => {
+      const r = rmFindRoute(l.from, l.to);
+      const img = r ? rmImageCache.get(r.id) : null;
+      const kmWarn = (r && r.km !== null && r.km !== undefined && l.km !== null && Math.abs(Number(r.km) - l.km) > 0.05)
+        ? `<span class="lws-tag rm-warn-tag" title="Iba ang KM sa Excel kumpara sa Route Library.">Library: ${escapeHtml(rmFmtKm(r.km))}</span>` : '';
+      html += `<div class="rm-leg${r ? '' : ' missing'}">
+        <div class="rm-thumb">${img ? `<img src="${img}" alt="">` : (r ? '…' : '✕')}</div>
+        <div class="rm-leg-route">${escapeHtml(l.from)} → ${escapeHtml(l.to)}</div>
+        ${l.km !== null ? `<span class="lws-tag">${escapeHtml(rmFmtKm(l.km))}</span>` : ''}
+        ${kmWarn}
+        ${r ? '<span class="status-badge display-only complete">✓ May screenshot</span>'
+            : `<span class="status-badge display-only pending">✕ Walang screenshot</span>
+               <button type="button" class="secondary rm-small viewer-hide" data-action="rm-leg-upload" data-from="${rmAttr(l.from)}" data-to="${rmAttr(l.to)}" data-km="${l.km === null ? '' : l.km}">📷 Upload</button>
+               <button type="button" class="secondary rm-small viewer-hide" data-action="rm-leg-paste" data-from="${rmAttr(l.from)}" data-to="${rmAttr(l.to)}" data-km="${l.km === null ? '' : l.km}">📋 Paste</button>`}
+      </div>`;
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+function rmRenderLibrary() {
+  const list = document.getElementById('rmRouteList');
+  const term = document.getElementById('rmSearchBox').value.trim().toLowerCase();
+  document.getElementById('statRmRoutes').textContent = reimbRoutes.length;
+
+  const places = new Set();
+  reimbRoutes.forEach(r => { if (r.from) places.add(r.from); if (r.to) places.add(r.to); });
+  if (rmParsed) rmParsed.groups.forEach(g => g.legs.forEach(l => { if (l.from) places.add(l.from); if (l.to) places.add(l.to); }));
+  fillDatalist('rmPlaceOptions', Array.from(places).sort((a, b) => a.localeCompare(b)));
+
+  if (rmLoadError) {
+    list.innerHTML = `<div class="lws-empty">Hindi ma-load ang Route Library (${escapeHtml(rmLoadError)}). Kung bago pa lang ang tab na ito, siguraduhing na-run na ang <strong>add_reimbursement_map.sql</strong> sa Supabase.</div>`;
+    return;
+  }
+  const filtered = reimbRoutes
+    .filter(r => !term || [r.from, r.to].join(' ').toLowerCase().includes(term))
+    .sort((a, b) => rmRouteLabel(a).localeCompare(rmRouteLabel(b)));
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="lws-empty">${reimbRoutes.length ? 'Walang tugmang route.' : 'Wala pang route sa library. Mag-upload ng Excel sa itaas, tapos lagyan ng screenshot ang bawat route na may ✕.'}</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(r => {
+    const isOpen = rmRoutesExpanded.has(r.id);
+    const img = rmImageCache.get(r.id);
+    return `
+      <div class="lws-row${isOpen ? ' expanded' : ''}" data-id="${r.id}">
+        <div class="lws-row-header" data-id="${r.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
+          <span class="lws-name">${escapeHtml(rmRouteLabel(r))}</span>
+          ${r.km !== null && r.km !== undefined ? `<span class="lws-tag">${escapeHtml(rmFmtKm(r.km))}</span>` : ''}
+          <span class="lws-chevron">▾</span>
+        </div>
+        <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
+          <div class="rm-route-body">
+            <div class="rm-route-img" id="rmImg__${r.id}">${img ? `<img src="${img}" alt="Screenshot ng ${rmAttr(rmRouteLabel(r))}">` : '<span class="rm-muted">Loading screenshot…</span>'}</div>
+            <div class="lws-detail-grid rm-route-fields">
+              ${lwsField('Travel From', r.id + '__from', 'from', r.from)}
+              ${lwsField('Travel To', r.id + '__to', 'to', r.to)}
+              ${lwsField('KM', r.id + '__km', 'km', r.km === null || r.km === undefined ? '' : String(r.km))}
+              <div class="field span2 rm-muted rm-added-by">${r.createdBy ? 'Idinagdag ni ' + escapeHtml(r.createdBy) : ''}</div>
+            </div>
+          </div>
+          <div class="lws-detail-actions">
+            <button type="button" class="secondary rm-small viewer-hide" data-id="${r.id}" data-action="rm-replace-upload">📷 Palitan ang Screenshot</button>
+            <button type="button" class="secondary rm-small viewer-hide" data-id="${r.id}" data-action="rm-replace-paste">📋 Paste Bagong Screenshot</button>
+            <button type="button" class="danger" data-id="${r.id}" data-action="delete-rm-route">Delete Route</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function rmShowRowImage(id) {
+  try { await rmEnsureImages([id]); } catch (err) { console.error(err); }
+  const holder = document.getElementById('rmImg__' + id);
+  if (!holder) return;
+  const img = rmImageCache.get(id);
+  holder.innerHTML = img ? `<img src="${img}" alt="">` : '<span class="rm-muted">Walang screenshot.</span>';
+}
+
+function renderReimbMap() {
+  try {
+    rmRenderPreview();
+    rmRenderLibrary();
+    applyReadOnlyUI();
+  } catch (err) {
+    console.error('renderReimbMap failed', err);
+  }
+}
+
+async function rmGenerateDocx() {
+  if (!rmParsed) return;
+  if (typeof JSZip === 'undefined') { alert('Hindi pa na-load ang Word generator. I-reload ang page at subukan ulit.'); return; }
+  const st = rmLegStats();
+  if (st.missing && !confirm(`May ${st.missing} biyahe na walang screenshot — hindi sila isasama sa Word file. Ituloy pa rin?`)) return;
+  const btn = document.getElementById('rmGenerateBtn');
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = '⏳ Ginagawa…';
+  try {
+    await rmEnsureImages(rmMatchedRouteIds());
+    const groups = rmParsed.groups.map(g => ({
+      label: g.label,
+      items: g.legs.map(l => {
+        const r = rmFindRoute(l.from, l.to);
+        if (!r || !rmImageCache.get(r.id)) return null;
+        return { imageKey: r.id, dataUrl: rmImageCache.get(r.id), w: r.imgW, h: r.imgH };
+      }).filter(Boolean)
+    })).filter(g => g.items.length);
+    if (!groups.length) { alert('Walang biyahe na may screenshot — wala pang maisasama sa Word file.'); return; }
+    const blob = await rmBuildDocx(groups, { onePerPage: document.getElementById('rmOnePerPage').checked });
+    const last = rmParsed.groups[rmParsed.groups.length - 1];
+    const first = (rmParsed.employee || '').trim().split(/\s+/)[0] || '';
+    const fileName = ['map', last && last.mon ? last.mon : '', first].filter(Boolean).join('_').replace(/[^\w.-]+/g, '') + '.docx';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (err) {
+    console.error('rmGenerateDocx failed', err);
+    alert('Hindi nagawa ang Word file: ' + (err && err.message ? err.message : 'unknown error'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
+}
+
+/* ----- wiring ----- */
+document.getElementById('rmExcelBtn').addEventListener('click', () => {
+  const input = document.getElementById('rmExcelFile');
+  input.value = '';
+  input.click();
+});
+document.getElementById('rmExcelFile').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) rmHandleExcel(file);
+});
+document.getElementById('rmGenerateBtn').addEventListener('click', rmGenerateDocx);
+document.getElementById('rmClearBtn').addEventListener('click', () => {
+  rmParsed = null;
+  renderReimbMap();
+});
+document.getElementById('rmImageFile').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  const cb = rmImagePickCb;
+  rmImagePickCb = null;
+  if (file && cb) cb(file);
+});
+document.getElementById('rmSearchBox').addEventListener('input', rmRenderLibrary);
+document.getElementById('rmRefreshBtn').addEventListener('click', async () => {
+  await rmLoadRoutes();
+  renderReimbMap();
+});
+document.querySelector('.grouptab-btn[data-grouptab="reimbmap"]').addEventListener('click', async () => {
+  await rmLoadRoutes();
+  renderReimbMap();
+});
+
+function rmClearNewRouteForm() {
+  ['rmNewFrom', 'rmNewTo', 'rmNewKm'].forEach(id => { document.getElementById(id).value = ''; });
+}
+async function rmAddFromForm(blob) {
+  const ok = await rmSaveRoute(
+    document.getElementById('rmNewFrom').value,
+    document.getElementById('rmNewTo').value,
+    document.getElementById('rmNewKm').value,
+    blob
+  );
+  if (ok) rmClearNewRouteForm();
+}
+document.getElementById('rmNewUploadBtn').addEventListener('click', () => {
+  if (!document.getElementById('rmNewFrom').value.trim() || !document.getElementById('rmNewTo').value.trim()) {
+    alert('Ilagay muna ang Travel From at Travel To.');
+    return;
+  }
+  rmPickImageFile(rmAddFromForm);
+});
+document.getElementById('rmNewPasteBtn').addEventListener('click', async () => {
+  if (!document.getElementById('rmNewFrom').value.trim() || !document.getElementById('rmNewTo').value.trim()) {
+    alert('Ilagay muna ang Travel From at Travel To.');
+    return;
+  }
+  const blob = await rmReadClipboardImage();
+  if (blob) rmAddFromForm(blob);
+});
+// Ctrl+V while typing in the Add Route form: if the clipboard holds a
+// screenshot, save it as this route's screenshot right away.
+document.getElementById('rmAddCard').addEventListener('paste', (e) => {
+  const items = (e.clipboardData && e.clipboardData.items) ? Array.from(e.clipboardData.items) : [];
+  const imgItem = items.find(it => it.kind === 'file' && /^image\//.test(it.type));
+  if (!imgItem) return;
+  e.preventDefault();
+  if (!document.getElementById('rmNewFrom').value.trim() || !document.getElementById('rmNewTo').value.trim()) {
+    alert('Ilagay muna ang Travel From at Travel To, tapos i-paste ulit ang screenshot.');
+    return;
+  }
+  rmAddFromForm(imgItem.getAsFile());
+});
+
+document.getElementById('rmPreview').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-action="rm-leg-upload"], button[data-action="rm-leg-paste"]');
+  if (!btn) return;
+  const { from, to, km } = btn.dataset;
+  if (btn.dataset.action === 'rm-leg-upload') {
+    rmPickImageFile(blob => rmSaveRoute(from, to, km, blob));
+  } else {
+    const blob = await rmReadClipboardImage();
+    if (blob) rmSaveRoute(from, to, km, blob);
+  }
+});
+
+document.getElementById('rmRouteList').addEventListener('click', async (e) => {
+  const actionBtn = e.target.closest('button[data-action]');
+  if (actionBtn) {
+    const id = actionBtn.dataset.id;
+    if (actionBtn.dataset.action === 'delete-rm-route') { rmDeleteRoute(id); return; }
+    if (actionBtn.dataset.action === 'rm-replace-upload') {
+      rmPickImageFile(async blob => {
+        try { rmSetRouteImage(id, await rmProcessImage(blob), null); } catch (err) { alert(err.message); }
+      });
+      return;
+    }
+    if (actionBtn.dataset.action === 'rm-replace-paste') {
+      const blob = await rmReadClipboardImage();
+      if (!blob) return;
+      try { rmSetRouteImage(id, await rmProcessImage(blob), null); } catch (err) { alert(err.message); }
+      return;
+    }
+  }
+  const header = e.target.closest('[data-action="toggle-row"]');
+  if (header) {
+    toggleAccordionRow(header, rmRoutesExpanded);
+    if (rmRoutesExpanded.has(header.dataset.id)) rmShowRowImage(header.dataset.id);
+  }
+});
+document.getElementById('rmRouteList').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const header = e.target.closest('[data-action="toggle-row"]');
+  if (!header || e.target !== header) return;
+  e.preventDefault();
+  toggleAccordionRow(header, rmRoutesExpanded);
+  if (rmRoutesExpanded.has(header.dataset.id)) rmShowRowImage(header.dataset.id);
+});
+document.getElementById('rmRouteList').addEventListener('change', (e) => {
+  const el = e.target;
+  if (!el.classList.contains('edit-field')) return;
+  rmUpdateRouteField(el.dataset.id, el.dataset.field, el.value);
 });
 
 /* Supabase persists the session in localStorage on its own, so a reload
