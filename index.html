@@ -2553,12 +2553,27 @@ function entityArray(entity) {
   }
 }
 
-async function logActivity(action, entity, label) {
+/* Section name written to activity_log.entity_type. Work Tracker, GA
+   Schedule and AM Schedule all share the tasks table, so a task's team
+   decides which one it is — this lets the Telegram notify function
+   (api/telegram-notify.js, which only forwards "Work Tracker") announce
+   TSE Work Tracker tasks only, not GA/AM schedule entries. */
+function activityEntityType(entity, row) {
+  if (entity === 'tasks' && row) {
+    const team = row.team || 'TSE';
+    if (team === 'GA') return 'GA Schedule';
+    if (team === 'AM') return 'AM Schedule';
+    if (team === 'ADMIN') return 'Work Tracker (ADMIN)';
+  }
+  return ENTITY_LABEL[entity] || entity;
+}
+
+async function logActivity(action, entity, label, row) {
   try {
     await sb.from('activity_log').insert([{
       actor_name: CURRENT_USER_NAME || 'Unknown',
       action,
-      entity_type: ENTITY_LABEL[entity] || entity,
+      entity_type: activityEntityType(entity, row),
       entity_label: label || ''
     }]);
   } catch (err) {
@@ -2630,7 +2645,7 @@ async function dbInsert(entity, row) {
   try {
     const { error } = await sb.from(ENTITY_TABLE[entity]).insert([toDbRow(entity, row)]);
     if (error) throw error;
-    logActivity('add', entity, labelFor(entity, row));
+    logActivity('add', entity, labelFor(entity, row), row);
     return { ok: true };
   } catch (err) {
     console.error('dbInsert failed', entity, err);
@@ -2643,7 +2658,7 @@ async function dbUpdate(entity, id, patch) {
     const { error } = await sb.from(ENTITY_TABLE[entity]).update(toDbPatch(entity, patch)).eq('id', id);
     if (error) throw error;
     const current = entityArray(entity).find(r => r.id === id);
-    logActivity('edit', entity, labelFor(entity, current));
+    logActivity('edit', entity, labelFor(entity, current), current);
     return { ok: true };
   } catch (err) {
     console.error('dbUpdate failed', entity, err);
@@ -2651,11 +2666,11 @@ async function dbUpdate(entity, id, patch) {
     return { ok: false };
   }
 }
-async function dbDelete(entity, id, label) {
+async function dbDelete(entity, id, label, row) {
   try {
     const { error } = await sb.from(ENTITY_TABLE[entity]).delete().eq('id', id);
     if (error) throw error;
-    logActivity('delete', entity, label || '');
+    logActivity('delete', entity, label || '', row);
     return { ok: true };
   } catch (err) {
     console.error('dbDelete failed', entity, err);
@@ -3250,11 +3265,12 @@ async function toggleStatus(id) {
 
 async function deleteTask(id) {
   if (!confirm('Are you sure you want to delete this task?')) return;
-  const label = labelFor('tasks', tasks.find(t => t.id === id));
+  const deletedTask = tasks.find(t => t.id === id);
+  const label = labelFor('tasks', deletedTask);
   const prevTasks = tasks.slice();
   tasks = tasks.filter(t => t.id !== id);
   renderTasks();
-  const result = await dbDelete('tasks', id, label);
+  const result = await dbDelete('tasks', id, label, deletedTask);
   if (!result.ok) {
     tasks = prevTasks;
     renderTasks();
