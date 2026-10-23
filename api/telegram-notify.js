@@ -4,7 +4,8 @@
 // Telegram group chat. It is called by a Supabase Database Webhook that
 // fires on every INSERT into the public.activity_log table — since every
 // add/edit/delete/import in the app already writes a row there (see
-// logActivity() in index.html), this one endpoint covers everything.
+// logActivity() in index.html). Only the sections listed in
+// NOTIFY_ENTITY_TYPES below are forwarded (currently Work Tracker only).
 //
 // Required environment variables (set in Vercel → Project → Settings →
 // Environment Variables):
@@ -14,6 +15,16 @@
 //                          Supabase webhook sends (see TELEGRAM_BOT_SETUP.md)
 //
 // No npm packages needed — Vercel's Node.js runtime has a global fetch().
+
+// Only these sections (activity_log.entity_type, i.e. ENTITY_LABEL in
+// index.html) are announced in the Telegram group. Everything else
+// (PMS Status, Inventory, Reimbursement, etc.) is still recorded in the
+// app's Activity Log tab — it just doesn't ping the group anymore.
+// "Work Tracker" here means TSE-team tasks only: index.html labels GA/AM
+// tasks as "GA Schedule" / "AM Schedule" (and ADMIN-team tasks as
+// "Work Tracker (ADMIN)"), so those are not announced.
+// To notify for another section again, add its name here, e.g. 'PMS Status'.
+const NOTIFY_ENTITY_TYPES = ['Work Tracker'];
 
 const ACTION_EMOJI = { add: '🆕', edit: '✏️', delete: '🗑️', import: '📥' };
 const ACTION_VERB = {
@@ -63,6 +74,11 @@ module.exports = async function handler(req, res) {
   // notification for those so the same action isn't announced twice.
   if (actor.startsWith('Telegram:')) {
     res.status(200).send('Skipped (bot-originated)');
+    return;
+  }
+
+  if (!NOTIFY_ENTITY_TYPES.includes(entityType)) {
+    res.status(200).send('Skipped (section not in NOTIFY_ENTITY_TYPES)');
     return;
   }
 
