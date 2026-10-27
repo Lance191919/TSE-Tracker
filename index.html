@@ -424,6 +424,29 @@
     gap: 8px;
   }
   .lws-group-rows[hidden] { display: none; }
+  /* PMS History (PMS Status rows) */
+  .pms-history { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .pms-history-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .pms-summary { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .pms-summary strong { color: var(--text); }
+  .pms-overdue-text { color: var(--red); font-weight: 600; }
+  .pms-hist-list { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+  .pms-hist-row { display: grid; grid-template-columns: 160px 140px 1fr 36px; gap: 10px; align-items: center; padding: 7px 12px; font-size: 13px; border-top: 1px solid var(--border); }
+  .pms-hist-row:first-child { border-top: none; }
+  .pms-hist-head { background: var(--panel2); color: var(--muted); font-size: 12px; font-weight: 600; }
+  .pms-hist-date { font-weight: 600; }
+  .pms-hist-notes { color: var(--muted); }
+  button.pms-hist-del { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 2px 8px; font-size: 12px; }
+  button.pms-hist-del:hover { color: var(--red); border-color: var(--red); }
+  .pms-hist-add { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pms-hist-add input[type="date"] { width: 160px; }
+  .pms-hist-add input[type="text"] { flex: 1; min-width: 120px; }
+  .pms-next-tag.pms-soon { color: var(--amber); border-color: rgba(224,138,60,0.45); }
+  .pms-next-tag.pms-overdue { color: var(--red); border-color: rgba(229,83,75,0.5); }
+  @media (max-width: 640px) {
+    .pms-hist-row { grid-template-columns: 1fr 1fr 32px; }
+    .pms-hist-row .pms-hist-notes { grid-column: 1 / 3; }
+  }
   .lws-static-value {
     padding: 6px 8px;
     color: var(--muted);
@@ -2319,6 +2342,7 @@ let activityLog = [];
 let userProfiles = [];
 let landbasedAccounts = [];
 let troubleshootingEntries = [];
+let pmsHistory = [];
 
 /* Set from the Supabase Auth session once login resolves (see the LOGIN
    section near the bottom of this script) — the logged-in user's email. */
@@ -2493,7 +2517,8 @@ const ENTITY_TABLE = {
   landbasedAccounts: 'landbased_accounts',
   troubleshootingEntries: 'troubleshooting_entries',
   reimbRoutes: 'reimbursement_routes',
-  reimbEntries: 'reimbursement_entries'
+  reimbEntries: 'reimbursement_entries',
+  pmsHistory: 'pms_history'
 };
 
 const ENTITY_LABEL = {
@@ -2509,7 +2534,8 @@ const ENTITY_LABEL = {
   landbasedAccounts: 'Landbased Accounts',
   troubleshootingEntries: 'Troubleshooting Guide',
   reimbRoutes: 'Reimbursement - Route Library',
-  reimbEntries: 'Reimbursement'
+  reimbEntries: 'Reimbursement',
+  pmsHistory: 'PMS History'
 };
 
 /* Picks a short, human-readable label for a row so the Activity Log
@@ -2528,6 +2554,7 @@ function labelFor(entity, row) {
     case 'userProfiles': return row.email || '';
     case 'landbasedAccounts': return [row.site, row.username].filter(Boolean).join(' - ');
     case 'troubleshootingEntries': return row.title || '';
+    case 'pmsHistory': return [row.siteName, pmsDisplayDate(row.dateDone)].filter(Boolean).join(' — ');
     case 'reimbRoutes': return [row.from, row.to].filter(Boolean).join(' → ');
     case 'reimbEntries': return [row.date || '', (row.section === 'gas' || row.section === 'commute') ? [row.from, row.to].filter(Boolean).join(' → ') : (row.description || '')].filter(Boolean).join(': ');
     default: return '';
@@ -2547,6 +2574,7 @@ function entityArray(entity) {
     case 'userProfiles': return userProfiles;
     case 'landbasedAccounts': return landbasedAccounts;
     case 'troubleshootingEntries': return troubleshootingEntries;
+    case 'pmsHistory': return pmsHistory;
     case 'reimbRoutes': return reimbRoutes;
     case 'reimbEntries': return reimbEntries;
     default: return [];
@@ -2593,6 +2621,7 @@ const FIELD_MAP = {
   userProfiles: { id:'id', email:'email', role:'role', team:'team' },
   landbasedAccounts: { id:'id', site:'site', accountNo:'account_no', username:'username', mobileNumber:'mobile_number', operator:'operator', remarks:'remarks', team:'team' },
   troubleshootingEntries: { id:'id', title:'title', category:'category', symptom:'symptom', steps:'steps', altSteps:'alt_steps', notes:'notes' },
+  pmsHistory: { id:'id', siteId:'site_id', siteName:'site_name', dateDone:'date_done', tse:'tse', notes:'notes', source:'source', team:'team', createdAt:'created_at' },
   reimbRoutes: { id:'id', from:'route_from', to:'route_to', km:'km', image:'image_data', imgW:'img_w', imgH:'img_h', createdBy:'created_by' },
   reimbEntries: { id:'id', section:'section', date:'entry_date', from:'route_from', to:'route_to', km:'km', rate:'rate', mode:'mode', withoutTicket:'without_ticket', withTicket:'with_ticket', description:'description', note:'note', amount:'amount', routeId:'route_id', image:'image_data', imgW:'img_w', imgH:'img_h' }
 };
@@ -2718,6 +2747,10 @@ async function loadAllData() {
     loadEntity('landbasedAccounts'),
     loadEntity('troubleshootingEntries')
   ]);
+  // Loaded on its own so PMS Status keeps working even before
+  // add_pms_history.sql has been run.
+  try { pmsHistory = await loadEntity('pmsHistory'); }
+  catch (err) { console.error('Failed to load PMS history', err); pmsHistory = []; }
 }
 
 async function loadActivityLog() {
@@ -2743,8 +2776,8 @@ function renderAll() {
 }
 
 function subscribeRealtime() {
-  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', phone_duties:'phoneDuties', user_profiles:'userProfiles', landbased_accounts:'landbasedAccounts', troubleshooting_entries:'troubleshootingEntries' };
-  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, phoneDuties: renderPhoneDuties, userProfiles: renderAdminTab, landbasedAccounts: renderLandbasedAccounts, troubleshootingEntries: renderTroubleshootingGuide };
+  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', phone_duties:'phoneDuties', user_profiles:'userProfiles', landbased_accounts:'landbasedAccounts', troubleshooting_entries:'troubleshootingEntries', pms_history:'pmsHistory' };
+  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, phoneDuties: renderPhoneDuties, userProfiles: renderAdminTab, landbasedAccounts: renderLandbasedAccounts, troubleshootingEntries: renderTroubleshootingGuide, pmsHistory: renderSites };
   sb.channel('tse-tracker-changes')
     .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
       if (payload.table === 'activity_log') {
@@ -2771,6 +2804,7 @@ function subscribeRealtime() {
         else if (entity === 'userProfiles') userProfiles = rows;
         else if (entity === 'landbasedAccounts') landbasedAccounts = rows;
         else if (entity === 'troubleshootingEntries') troubleshootingEntries = rows;
+        else if (entity === 'pmsHistory') pmsHistory = rows;
         rendererByEntity[entity]();
       } catch (err) {
         console.error('realtime refresh failed', entity, err);
@@ -3371,10 +3405,12 @@ function exportSitesToExcel() {
   if (sites.length === 0) { alert('No sites to export yet.'); return; }
   const rows = sites.map(s => ({
     Cluster: s.cluster, 'Site Name': s.name, TSE: s.tse, 'Operation Hours': s.hours,
-    'Schedule Date': s.sched, 'Date Done': s.datedone, Mark: s.mark || ''
+    'Schedule Date': s.sched, 'Date Done': s.datedone, Mark: s.mark || '',
+    'Last PMS': (pmsNextFor(s.id) || {}).last ? pmsDisplayDate(pmsNextFor(s.id).last) : '',
+    'Next PMS': (pmsNextFor(s.id) || {}).next ? pmsDisplayDate(pmsNextFor(s.id).next) : ''
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }];
+  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 18 }, { wch: 18 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Sites');
   XLSX.writeFile(wb, `sites_tracker_${todayStr()}.xlsx`);
@@ -3541,6 +3577,132 @@ let sitesExpanded = new Set();
 // on screen at once.
 let sitesGroupsExpanded = new Set();
 
+/* ---------- PMS History ----------
+   Every finished PMS is a row in public.pms_history (site_id, date_done).
+   Next PMS is never stored: it is always the latest date_done + 3 months,
+   so adding or removing a history entry keeps it correct automatically. */
+const PMS_INTERVAL_MONTHS = 3;
+const PMS_MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+let pmsHistoryOpen = new Set();
+
+function pmsIso(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function pmsTodayIso() { return pmsIso(new Date()); }
+/* Free-text dates in PMS Status ("July 14, 2026", "07/14/2026",
+   "2026-07-14") → 'YYYY-MM-DD', or null if it can't be read. */
+function pmsParseDate(str) {
+  const s = String(str || '').trim();
+  if (!s) return null;
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  let d = iso ? new Date(+iso[1], +iso[2] - 1, +iso[3]) : new Date(s);
+  if (isNaN(d.getTime())) return null;
+  if (d.getFullYear() < 2000 || d.getFullYear() > 2100) return null;
+  return pmsIso(d);
+}
+function pmsDisplayDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? `${PMS_MONTHS_FULL[+m[2] - 1]} ${+m[3]}, ${m[1]}` : '';
+}
+function pmsAddMonths(iso, months) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  if (!m) return '';
+  const y = +m[1], mo = +m[2] - 1 + months, day = +m[3];
+  const lastDay = new Date(y, mo + 1, 0).getDate();
+  return pmsIso(new Date(y, mo, Math.min(day, lastDay)));
+}
+function pmsDaysUntil(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  if (!m) return null;
+  const target = new Date(+m[1], +m[2] - 1, +m[3]);
+  const t = new Date(); const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  return Math.round((target - today) / 86400000);
+}
+function pmsHistoryFor(siteId) {
+  return pmsHistory.filter(h => h.siteId === siteId)
+    .sort((a, b) => String(b.dateDone || '').localeCompare(String(a.dateDone || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+}
+function pmsNextFor(siteId) {
+  const latest = pmsHistoryFor(siteId)[0];
+  return latest ? { last: latest.dateDone, next: pmsAddMonths(latest.dateDone, PMS_INTERVAL_MONTHS) } : null;
+}
+function pmsNextTagHtml(siteId) {
+  const info = pmsNextFor(siteId);
+  if (!info) return '';
+  const days = pmsDaysUntil(info.next);
+  const cls = days < 0 ? ' pms-overdue' : (days <= 14 ? ' pms-soon' : '');
+  const title = days < 0 ? `Overdue nang ${-days} araw` : (days === 0 ? 'Ngayong araw' : `Sa loob ng ${days} araw`);
+  return `<span class="lws-tag pms-next-tag${cls}" title="${title}">Next PMS: ${escapeHtml(pmsDisplayDate(info.next))}</span>`;
+}
+
+function pmsHistorySectionHtml(s) {
+  const hist = pmsHistoryFor(s.id);
+  const info = pmsNextFor(s.id);
+  let summary = 'Wala pang naitalang PMS. Kapag ginawang DONE ang Mark, kusa itong maitatala rito.';
+  if (info) {
+    const days = pmsDaysUntil(info.next);
+    const when = days < 0 ? `<span class="pms-overdue-text">overdue nang ${-days} araw</span>` : (days === 0 ? 'ngayong araw' : `sa loob ng ${days} araw`);
+    summary = `Huling PMS: <strong>${escapeHtml(pmsDisplayDate(info.last))}</strong> · Susunod na PMS: <strong>${escapeHtml(pmsDisplayDate(info.next))}</strong> (${when})`;
+  }
+  const rows = hist.map(h => `
+      <div class="pms-hist-row">
+        <span class="pms-hist-date">${escapeHtml(pmsDisplayDate(h.dateDone))}</span>
+        <span class="pms-hist-tse">${escapeHtml(h.tse || '—')}</span>
+        <span class="pms-hist-notes">${escapeHtml(h.notes || '')}</span>
+        <button type="button" class="pms-hist-del viewer-hide" data-id="${h.id}" data-action="pms-del-history" title="Tanggalin ang entry na ito" aria-label="Tanggalin">✕</button>
+      </div>`).join('');
+  return `
+    <div class="pms-history">
+      <div class="pms-history-title">PMS History <span class="lws-tag">${hist.length}</span></div>
+      <div class="pms-summary">${summary}</div>
+      ${hist.length ? `<div class="pms-hist-list"><div class="pms-hist-row pms-hist-head"><span>Date Done</span><span>TSE</span><span>Notes</span><span></span></div>${rows}</div>` : ''}
+      <div class="pms-hist-add viewer-hide">
+        <input type="date" id="pmsAddDate__${s.id}" aria-label="Date Done" value="${pmsTodayIso()}">
+        <input type="text" id="pmsAddTse__${s.id}" aria-label="TSE" placeholder="TSE" value="${escapeHtml(s.tse || '')}">
+        <input type="text" id="pmsAddNotes__${s.id}" aria-label="Notes" placeholder="Notes (optional)">
+        <button type="button" class="secondary" data-id="${s.id}" data-action="pms-add-history">+ Add sa History</button>
+      </div>
+    </div>`;
+}
+
+async function pmsAddHistory(site, dateIso, tse, notes, source) {
+  const row = {
+    id: 'pmsh_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    siteId: site.id, siteName: site.name || '', dateDone: dateIso, tse: tse || '', notes: notes || '',
+    source: source || 'manual', team: site.team || 'TSE', createdAt: new Date().toISOString()
+  };
+  pmsHistory.push(row);
+  renderSites();
+  const result = await dbInsert('pmsHistory', row);
+  if (!result.ok) {
+    pmsHistory = pmsHistory.filter(h => h.id !== row.id);
+    renderSites();
+  }
+  return result.ok;
+}
+
+async function pmsDeleteHistory(id, skipConfirm) {
+  const h = pmsHistory.find(x => x.id === id);
+  if (!h) return;
+  if (!skipConfirm && !confirm(`Tanggalin ang PMS History entry na ${pmsDisplayDate(h.dateDone)}?`)) return;
+  const prev = pmsHistory.slice();
+  pmsHistory = pmsHistory.filter(x => x.id !== id);
+  renderSites();
+  const result = await dbDelete('pmsHistory', id, labelFor('pmsHistory', h));
+  if (!result.ok) { pmsHistory = prev; renderSites(); }
+}
+
+async function pmsAddHistoryFromForm(siteId) {
+  const site = sites.find(s => s.id === siteId);
+  if (!site) return;
+  const date = document.getElementById('pmsAddDate__' + siteId).value;
+  const tse = document.getElementById('pmsAddTse__' + siteId).value.trim();
+  const notes = document.getElementById('pmsAddNotes__' + siteId).value.trim();
+  if (!date) { alert('Ilagay ang Date Done.'); return; }
+  if (pmsHistory.some(h => h.siteId === siteId && h.dateDone === date)) {
+    if (!confirm(`May entry na para sa ${pmsDisplayDate(date)}. Idagdag pa rin?`)) return;
+  }
+  await pmsAddHistory(site, date, tse, notes, 'manual');
+}
+
 function renderSites() {
   const teamFilterVal = document.getElementById('siteTeamFilter').value;
   const filtered = teamFilterVal === 'all' ? sites : sites.filter(s => (s.team || 'TSE') === teamFilterVal);
@@ -3590,6 +3752,7 @@ function renderSites() {
         <div class="lws-row-header" data-id="${s.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
           <span class="lws-name">${escapeHtml(s.name)}</span>
           ${s.cluster ? `<span class="lws-tag">${escapeHtml(s.cluster)}</span>` : ''}
+          ${pmsNextTagHtml(s.id)}
           ${markStatusBadgeHtml(s.id, s.mark)}
           <span class="lws-chevron">▾</span>
         </div>
@@ -3612,6 +3775,7 @@ function renderSites() {
               ${teamSelectHtml(s.id, s.team)}
             </div>
           </div>
+          ${pmsHistorySectionHtml(s)}
           <div class="lws-detail-actions">
             <button class="danger" data-id="${s.id}" data-action="delete-pms-site">Delete Site</button>
           </div>
@@ -3637,18 +3801,48 @@ async function updateSiteField(id, field, value) {
   }
 }
 
+/* Mark → DONE: save the PMS in History (date = Date Done, or today if
+   Date Done is blank/unreadable — which also fills in Date Done), so
+   Next PMS becomes that date + 3 months.
+   DONE → Pending: if the latest History entry came from a Mark click less
+   than 24 hours ago, it was most likely a mis-click, so that entry is
+   removed again. Otherwise this starts a new PMS cycle: Date Done is
+   cleared (the finished PMS stays in History). */
 async function toggleSiteMark(id) {
   const site = sites.find(s => s.id === id);
   if (!site) return;
-  const prevMark = site.mark;
+  const prev = { mark: site.mark, datedone: site.datedone };
   const isDone = (site.mark || '').trim().toUpperCase().startsWith('DONE');
-  site.mark = isDone ? '' : 'DONE';
-  renderSites();
-  const result = await dbUpdate('sites', id, { mark: site.mark });
-  if (!result.ok) {
-    site.mark = prevMark;
+  const patch = {};
+
+  if (!isDone) {
+    let doneIso = pmsParseDate(site.datedone);
+    if (!doneIso) {
+      doneIso = pmsTodayIso();
+      site.datedone = pmsDisplayDate(doneIso);
+      patch.datedone = site.datedone;
+    }
+    site.mark = 'DONE';
+    patch.mark = 'DONE';
     renderSites();
+    const result = await dbUpdate('sites', id, patch);
+    if (!result.ok) { site.mark = prev.mark; site.datedone = prev.datedone; renderSites(); return; }
+    if (!pmsHistory.some(h => h.siteId === id && h.dateDone === doneIso)) {
+      await pmsAddHistory(site, doneIso, site.tse, '', 'mark');
+    }
+    return;
   }
+
+  const latest = pmsHistoryFor(id)[0];
+  const createdMs = latest && latest.createdAt ? Date.parse(latest.createdAt) : NaN;
+  const isUndo = !!latest && latest.source === 'mark' && !isNaN(createdMs) && (Date.now() - createdMs) < 24 * 3600 * 1000;
+  site.mark = '';
+  patch.mark = '';
+  if (!isUndo && site.datedone) { site.datedone = ''; patch.datedone = ''; }
+  renderSites();
+  const result = await dbUpdate('sites', id, patch);
+  if (!result.ok) { site.mark = prev.mark; site.datedone = prev.datedone; renderSites(); return; }
+  if (isUndo) await pmsDeleteHistory(latest.id, true);
 }
 
 async function deleteSite(id) {
@@ -3682,6 +3876,10 @@ document.getElementById('sitesTableBody').addEventListener('click', (e) => {
   if (groupHeader) { toggleAccordionGroup(groupHeader, sitesGroupsExpanded); return; }
   const markBtn = e.target.closest('button[data-action="toggle-mark"]');
   if (markBtn) { toggleSiteMark(markBtn.dataset.id); return; }
+  const pmsAddBtn = e.target.closest('button[data-action="pms-add-history"]');
+  if (pmsAddBtn) { pmsAddHistoryFromForm(pmsAddBtn.dataset.id); return; }
+  const pmsDelBtn = e.target.closest('button[data-action="pms-del-history"]');
+  if (pmsDelBtn) { pmsDeleteHistory(pmsDelBtn.dataset.id); return; }
   const delBtn = e.target.closest('button[data-action="delete-pms-site"]');
   if (delBtn) { deleteSite(delBtn.dataset.id); return; }
   const rowHeader = e.target.closest('[data-action="toggle-row"]');
