@@ -7406,8 +7406,15 @@ const RM_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'
 /* Route matching key: case-, space- and punctuation-insensitive, so
    "Fsc Dasma" and "FSC  Dasma." count as the same place. Direction still
    matters (A → B is a different route from B → A, different km). */
+/* Other names for the same office. They all count as "Manda Office", so old
+   routes saved as "MG2 Tower" still match trips to/from Manda Office. */
+const RM_PLACE_ALIASES = { 'mg2 tower': 'manda office', 'mg tower 2': 'manda office', 'mg tower ii': 'manda office', 'mg2': 'manda office' };
+/* Reimbursement place names drop the "LakiWin - " prefix ("LakiWin - 88
+   Square" → "88 Square"); with or without it, it counts as the same place. */
+function rmStripSitePrefix(s) { return String(s || '').replace(/^\s*laki\s*win\s*[-–—:|]?\s*/i, '').trim(); }
 function rmPlaceKey(s) {
-  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const k = rmStripSitePrefix(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return RM_PLACE_ALIASES[k] || k;
 }
 function rmRouteKey(from, to) { return rmPlaceKey(from) + ' >> ' + rmPlaceKey(to); }
 
@@ -7914,7 +7921,7 @@ let rmImagePickCb = null;
 function genRmId() { return 'rr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); }
 function rmAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function rmFmtKm(km) { return (km === null || km === undefined || km === '' || isNaN(Number(km))) ? '' : `${Number(km)} km`; }
-function rmRouteLabel(r) { return `${r.from || '—'} → ${r.to || '—'}`; }
+function rmRouteLabel(r) { return `${rmCanonicalPlace(r.from) || '—'} → ${rmCanonicalPlace(r.to) || '—'}`; }
 function rmFindRoute(from, to) {
   const key = rmRouteKey(from, to);
   return reimbRoutes.find(r => rmRouteKey(r.from, r.to) === key) || null;
@@ -8186,20 +8193,33 @@ function rmRenderPreview() {
    Status, plus every place this account has already used (its routes and
    entries). Free text still works for places not on the list. Names that
    only differ in capitals/spaces are listed once. */
+// The team's offices — always at the top of the Travel From / Travel To
+// list. To add another fixed place, put it here.
+const RM_OFFICE_PLACES = ['Jaka Building', 'Manda Office'];
+/* "mg2 tower" typed → "Manda Office"; anything else is kept as typed. */
+function rmCanonicalPlace(name) {
+  const n = rmStripSitePrefix(name);
+  const k = rmPlaceKey(n);
+  const office = RM_OFFICE_PLACES.find(o => rmPlaceKey(o) === k);
+  return office || n;
+}
 function rmPlaceSuggestions() {
   const byKey = new Map();
   const add = (name) => {
-    const n = String(name || '').trim();
+    const n = rmStripSitePrefix(name);
     if (!n) return;
     const k = rmPlaceKey(n);
     if (k && !byKey.has(k)) byKey.set(k, n);
   };
+  RM_OFFICE_PLACES.forEach(add);
   (typeof lakiwinSites !== 'undefined' ? lakiwinSites : []).forEach(s => add(s.siteName));
   (typeof sites !== 'undefined' ? sites : []).forEach(s => add(s.name));
   reimbRoutes.forEach(r => { add(r.from); add(r.to); });
   reimbEntries.forEach(e => { if (e.section === 'gas' || e.section === 'commute') { add(e.from); add(e.to); } });
   if (rmParsed) rmParsed.groups.forEach(g => g.legs.forEach(l => { add(l.from); add(l.to); }));
-  return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
+  const officeKeys = new Set(RM_OFFICE_PLACES.map(rmPlaceKey));
+  const rest = Array.from(byKey.entries()).filter(([k]) => !officeKeys.has(k)).map(([, v]) => v).sort((a, b) => a.localeCompare(b));
+  return RM_OFFICE_PLACES.concat(rest);
 }
 
 function rmRenderLibrary() {
@@ -8207,7 +8227,8 @@ function rmRenderLibrary() {
   const term = document.getElementById('rmSearchBox').value.trim().toLowerCase();
   document.getElementById('statRmRoutes').textContent = reimbRoutes.length;
 
-  fillDatalist('rmPlaceOptions', rmPlaceSuggestions());
+  // Offices first, then everything else A–Z (fillDatalist would re-sort).
+  document.getElementById('rmPlaceOptions').innerHTML = rmPlaceSuggestions().map(n => `<option value="${rmAttr(n)}">`).join('');
 
   if (rmLoadError) {
     list.innerHTML = `<div class="lws-empty">Hindi ma-load ang Route Library (${escapeHtml(rmLoadError)}). Kung bago pa lang ang tab na ito, siguraduhing na-run na ang <strong>add_reimbursement_map.sql</strong> sa Supabase.</div>`;
@@ -8754,8 +8775,8 @@ function rmEnsureCoveredIncludes(iso) {
 
 async function rmAddGas() {
   const date = document.getElementById('rmGasDate').value;
-  const from = document.getElementById('rmGasFrom').value.trim();
-  const to = document.getElementById('rmGasTo').value.trim();
+  const from = rmCanonicalPlace(document.getElementById('rmGasFrom').value);
+  const to = rmCanonicalPlace(document.getElementById('rmGasTo').value);
   const km = rmParseNum(document.getElementById('rmGasKm').value);
   const rate = rmParseNum(document.getElementById('rmGasRate').value);
   if (!date) { alert('Ilagay ang Date.'); return; }
@@ -8800,8 +8821,8 @@ async function rmAddSimple(section) {
   let entry;
   if (section === 'commute') {
     const date = document.getElementById('rmComDate').value;
-    const from = document.getElementById('rmComFrom').value.trim();
-    const to = document.getElementById('rmComTo').value.trim();
+    const from = rmCanonicalPlace(document.getElementById('rmComFrom').value);
+    const to = rmCanonicalPlace(document.getElementById('rmComTo').value);
     const mode = document.getElementById('rmComMode').value.trim();
     const wo = rmParseNum(document.getElementById('rmComWo').value);
     const wt = rmParseNum(document.getElementById('rmComWt').value);
@@ -8852,8 +8873,8 @@ function rmEntryFieldsHtml(e) {
 }
 
 function rmEntryTitle(e) {
-  if (e.section === 'gas') return `${e.from || '—'} → ${e.to || '—'}`;
-  if (e.section === 'commute') return `${e.from || '—'} → ${e.to || '—'}${e.mode ? ' (' + e.mode + ')' : ''}`;
+  if (e.section === 'gas') return `${rmCanonicalPlace(e.from) || '—'} → ${rmCanonicalPlace(e.to) || '—'}`;
+  if (e.section === 'commute') return `${rmCanonicalPlace(e.from) || '—'} → ${rmCanonicalPlace(e.to) || '—'}${e.mode ? ' (' + e.mode + ')' : ''}`;
   return e.description || '(walang description)';
 }
 
@@ -9031,8 +9052,8 @@ async function rmGenerateXlsx() {
       covered: rmCoveredText(document.getElementById('rmCovFrom').value, document.getElementById('rmCovTo').value),
       sheetName: [bits.mon, bits.day].filter(Boolean).join(' ') || 'Reimbursement'
     }, {
-      gas: pick('gas').map(e => ({ date: e.date, from: e.from, to: e.to, km: e.km, rate: e.rate })),
-      commute: pick('commute').map(e => ({ date: e.date, from: e.from, to: e.to, mode: e.mode, withoutTicket: e.withoutTicket, withTicket: e.withTicket, note: e.note })),
+      gas: pick('gas').map(e => ({ date: e.date, from: rmCanonicalPlace(e.from), to: rmCanonicalPlace(e.to), km: e.km, rate: e.rate })),
+      commute: pick('commute').map(e => ({ date: e.date, from: rmCanonicalPlace(e.from), to: rmCanonicalPlace(e.to), mode: e.mode, withoutTicket: e.withoutTicket, withTicket: e.withTicket, note: e.note })),
       supplies: pick('supplies').map(e => ({ date: e.date, description: e.description, note: e.note, amount: e.amount })),
       others: pick('others').map(e => ({ date: e.date, description: e.description, note: e.note, amount: e.amount }))
     });
@@ -9129,6 +9150,12 @@ document.getElementById('rmShotZone').addEventListener('drop', (e) => {
   e.preventDefault();
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if (file) rmSetGasShot(file);
+});
+['rmGasFrom', 'rmGasTo', 'rmComFrom', 'rmComTo', 'rmNewFrom', 'rmNewTo'].forEach(id => {
+  document.getElementById(id).addEventListener('change', (e) => {
+    const canon = rmCanonicalPlace(e.target.value);
+    if (canon !== e.target.value.trim()) e.target.value = canon;
+  });
 });
 document.getElementById('rmGasAddBtn').addEventListener('click', rmAddGas);
 document.getElementById('rmComAddBtn').addEventListener('click', () => rmAddSimple('commute'));
