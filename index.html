@@ -2619,6 +2619,9 @@ function activityEntityType(entity, row) {
 }
 
 async function logActivity(action, entity, label, row) {
+  // Personal reimbursement entries are private to their owner — don't
+  // announce them in the Activity Log that every account can read.
+  if (entity === 'reimbEntries') return;
   try {
     await sb.from('activity_log').insert([{
       actor_name: CURRENT_USER_NAME || 'Unknown',
@@ -7315,6 +7318,7 @@ async function doLogout() {
   CURRENT_USER_ROLE = 'editor';
   CURRENT_USER_TEAM = 'TSE';
   CURRENT_USER_ID = '';
+  rmClearPrivateState();
   document.body.classList.remove('viewer-mode');
   document.body.classList.remove('admin-mode');
   showLoginGate();
@@ -7497,14 +7501,36 @@ function rmXmlEsc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 const RM_EMU_PER_IN = 914400;
-const RM_IMG_MAX_W = Math.round(2.68 * RM_EMU_PER_IN);   // same width as the current Word file's screenshots
-const RM_IMG_MAX_H = Math.round(3.75 * RM_EMU_PER_IN);   // keeps 2 rows of screenshots per page
+/* Page: Letter, 0.75" margins → 7" × 9.5" to work with. Every date has to
+   fit on ONE page, so its screenshots are laid out in 2–4 columns and
+   shrunk just enough to fit, choosing the column count that keeps them
+   largest. Never bigger than RM_IMG_MAX_W (the size in the team's
+   current Word file). */
+const RM_PAGE_W_TWIPS = 10080;                           // 7.0"
+const RM_IMG_MAX_W = Math.round(3.0 * RM_EMU_PER_IN);
+const RM_AVAIL_H = Math.round(8.55 * RM_EMU_PER_IN);    // 9.5" minus the date label and its spacing
+const RM_ROW_PAD = Math.round(0.2 * RM_EMU_PER_IN);     // space under each row of screenshots
+const RM_COL_GAP = Math.round(0.3 * RM_EMU_PER_IN);
 
-function rmImgExtent(w, h) {
-  const ratio = (w > 0 && h > 0) ? h / w : 1.2;
-  let cx = RM_IMG_MAX_W, cy = Math.round(cx * ratio);
-  if (cy > RM_IMG_MAX_H) { cy = RM_IMG_MAX_H; cx = Math.round(cy / ratio); }
-  return { cx, cy };
+function rmRatio(it) { return (it.w > 0 && it.h > 0) ? it.h / it.w : 1.2; }
+
+/* → { cols, width } : column count and screenshot width (EMU) for one date. */
+function rmDateLayout(items) {
+  const n = items.length;
+  if (!n) return { cols: 1, width: RM_IMG_MAX_W };
+  const pageW = RM_PAGE_W_TWIPS * 635;   // twips → EMU
+  let best = null;
+  const options = n === 1 ? [1] : [2, 3, 4].filter(c => c <= Math.max(2, n));
+  options.forEach(cols => {
+    const colW = Math.min(RM_IMG_MAX_W, Math.floor((pageW - (cols - 1) * RM_COL_GAP) / cols));
+    const rows = Math.ceil(n / cols);
+    let sumRatio = 0;   // total height of all rows, per 1 EMU of width
+    for (let r = 0; r < rows; r++) sumRatio += Math.max(...items.slice(r * cols, r * cols + cols).map(rmRatio));
+    const fitW = (RM_AVAIL_H - rows * RM_ROW_PAD) / sumRatio;
+    const width = Math.floor(Math.min(colW, fitW));
+    if (!best || width > best.width + 1) best = { cols, width };
+  });
+  return best;
 }
 
 function rmDrawingXml(rid, docPrId, name, cx, cy) {
@@ -7517,19 +7543,37 @@ function rmDrawingXml(rid, docPrId, name, cx, cy) {
     `<pic:nvPicPr><pic:cNvPr id='${docPrId}' name='${rmXmlEsc(name)}'/><pic:cNvPicPr/></pic:nvPicPr>` +
     `<pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
     `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
-    `<a:ln w="6350"><a:solidFill><a:srgbClr val="BFBFBF"/></a:solidFill></a:ln></pic:spPr>` +
+    `<a:ln w="12700"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:ln></pic:spPr>` +
     `</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
 }
 
-/* Small bordered date label, like the boxes in the current Word file. */
-function rmDateLabelXml(label) {
-  const b = '<w:top w:val="single" w:sz="6" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="6" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="6" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="6" w:space="0" w:color="000000"/>';
-  return `<w:tbl><w:tblPr><w:tblW w:w="1900" w:type="dxa"/><w:jc w:val="center"/><w:tblBorders>${b}</w:tblBorders>` +
-    `<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr>` +
-    `<w:tblGrid><w:gridCol w:w="1900"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr><w:tc><w:tcPr><w:tcW w:w="1900" w:type="dxa"/></w:tcPr>` +
-    `<w:p><w:pPr><w:keepNext/><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>` +
-    `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${rmXmlEsc(label)}</w:t></w:r></w:p>` +
-    `</w:tc></w:tr></w:tbl>`;
+/* Small bordered date label, like the boxes in the current Word file —
+   a paragraph with a box border, narrowed by indents. pageBreakBefore
+   starts each date on a fresh page without leaving a blank line. */
+function rmDateLabelXml(label, newPage) {
+  const side = Math.round((RM_PAGE_W_TWIPS - 1900) / 2);
+  const b = (s) => `<w:${s} w:val="single" w:sz="6" w:space="3" w:color="000000"/>`;
+  return `<w:p><w:pPr>${newPage ? '<w:pageBreakBefore/>' : ''}<w:keepNext/>` +
+    `<w:pBdr>${b('top')}${b('left')}${b('bottom')}${b('right')}</w:pBdr>` +
+    `<w:spacing w:before="0" w:after="280"/><w:ind w:left="${side}" w:right="${side}"/><w:jc w:val="center"/></w:pPr>` +
+    `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${rmXmlEsc(label)}</w:t></w:r></w:p>`;
+}
+
+/* Borderless grid that holds one date's screenshots. */
+function rmGridXml(cells, cols) {
+  const cellW = Math.floor(RM_PAGE_W_TWIPS / cols);
+  const none = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(s => `<w:${s} w:val="nil"/>`).join('');
+  let rows = '';
+  for (let i = 0; i < cells.length; i += cols) {
+    const rowCells = cells.slice(i, i + cols);
+    while (rowCells.length < cols) rowCells.push('');
+    rows += '<w:tr><w:trPr><w:cantSplit/></w:trPr>' + rowCells.map(c =>
+      `<w:tc><w:tcPr><w:tcW w:w="${cellW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>` +
+      `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="200" w:line="240" w:lineRule="auto"/></w:pPr>${c}</w:p></w:tc>`).join('') + '</w:tr>';
+  }
+  return `<w:tbl><w:tblPr><w:tblW w:w="${cellW * cols}" w:type="dxa"/><w:jc w:val="center"/><w:tblBorders>${none}</w:tblBorders>` +
+    `<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr>` +
+    `<w:tblGrid>${Array(cols).fill(`<w:gridCol w:w="${cellW}"/>`).join('')}</w:tblGrid>${rows}</w:tbl>`;
 }
 
 function rmDataUrlParts(dataUrl) {
@@ -7541,7 +7585,8 @@ function rmDataUrlParts(dataUrl) {
 }
 
 /* groups: [{ label, items: [{ imageKey, dataUrl, w, h }] }]
-   One date per block: date label, then its screenshots two per row.
+   One date per page: date label, then its screenshots in a grid sized to
+   fit that page, each with a thin black border.
    Same screenshot used on many dates is stored once in the file. */
 async function rmBuildDocx(groups, opts) {
   const onePerPage = !opts || opts.onePerPage !== false;
@@ -7553,32 +7598,26 @@ async function rmBuildDocx(groups, opts) {
   const exts = new Set();
 
   groups.forEach((g, gi) => {
-    if (gi > 0 && onePerPage) body.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
-    else if (gi > 0) body.push('<w:p><w:pPr><w:spacing w:before="0" w:after="120"/></w:pPr></w:p>');
-    body.push(rmDateLabelXml(g.label));
-    body.push('<w:p><w:pPr><w:keepNext/><w:spacing w:before="0" w:after="120"/></w:pPr></w:p>');
-    for (let i = 0; i < g.items.length; i += 2) {
-      const pair = g.items.slice(i, i + 2);
-      const runs = [];
-      pair.forEach((it, k) => {
-        const parts = rmDataUrlParts(it.dataUrl);
-        if (!parts) return;
-        let m = media.get(it.imageKey);
-        if (!m) {
-          const file = `image${media.size + 1}.${parts.ext === 'jpeg' ? 'jpeg' : parts.ext}`;
-          m = { rid: 'rId' + (ridN++), file };
-          media.set(it.imageKey, m);
-          zip.file('word/media/' + file, parts.b64, { base64: true });
-          relsImgs.push(`<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${file}"/>`);
-          exts.add(parts.ext);
-        }
-        const { cx, cy } = rmImgExtent(it.w, it.h);
-        if (k > 0) runs.push('<w:r><w:t xml:space="preserve">      </w:t></w:r>');
-        runs.push(rmDrawingXml(m.rid, picN, m.file, cx, cy));
-        picN++;
-      });
-      body.push(`<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="200"/></w:pPr>${runs.join('')}</w:p>`);
-    }
+    const items = g.items.filter(it => rmDataUrlParts(it.dataUrl));
+    if (!items.length) return;
+    if (gi > 0 && !onePerPage) body.push('<w:p><w:pPr><w:spacing w:before="0" w:after="200"/></w:pPr></w:p>');
+    body.push(rmDateLabelXml(g.label, gi > 0 && onePerPage));
+    const layout = rmDateLayout(items);
+    const cells = items.map(it => {
+      const parts = rmDataUrlParts(it.dataUrl);
+      let m = media.get(it.imageKey);
+      if (!m) {
+        const file = `image${media.size + 1}.${parts.ext === 'jpeg' ? 'jpeg' : parts.ext}`;
+        m = { rid: 'rId' + (ridN++), file };
+        media.set(it.imageKey, m);
+        zip.file('word/media/' + file, parts.b64, { base64: true });
+        relsImgs.push(`<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${file}"/>`);
+        exts.add(parts.ext);
+      }
+      const cx = layout.width, cy = Math.round(layout.width * rmRatio(it));
+      return rmDrawingXml(m.rid, picN++, m.file, cx, cy);
+    });
+    body.push(rmGridXml(cells, layout.cols));
   });
 
   const sect = '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>';
@@ -7588,7 +7627,7 @@ async function rmBuildDocx(groups, opts) {
     'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" ' +
     'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
     'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
-    `<w:body>${body.join('')}${sect}</w:body></w:document>`;
+    `<w:body>${body.join('')}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:rPr><w:sz w:val="2"/></w:rPr></w:pPr></w:p>${sect}</w:body></w:document>`;
 
   const ctExt = { png: 'image/png', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
   zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -7809,7 +7848,8 @@ async function rmBuildXlsx(templateB64, info, data) {
     `${rmCell('G' + r, 80, { sst: 29 })}${rmCell('H' + r, 81)}${rmCell('I' + r, 1, { f: `SUM(I${gasSubRow}+I${comSubRow}+I${supSubRow}+I${othSubRow})`, v: grand })}</row>`);
   merges.push(`G${r}:H${r}`);
   r++;
-  [[6, info.employee || ''], [7, ''], [8, '']].forEach(([sst, name], i) => {
+  // Received By / Noted By / Approved By: labels only — the lines stay blank for signing.
+  [[6, ''], [7, ''], [8, '']].forEach(([sst, name], i) => {
     out.push(`<row r="${r}" spans="1:3" ht="22.5" customHeight="1">${rmCell('A' + r, 82, { sst })}${rmCell('B' + r, 82)}${rmCell('C' + r, i === 0 ? 28 : 15, name ? { str: name } : {})}</row>`);
     merges.push(`A${r}:B${r}`);
     r++;
@@ -8270,6 +8310,7 @@ document.getElementById('rmImageFile').addEventListener('change', (e) => {
 });
 document.getElementById('rmSearchBox').addEventListener('input', rmRenderLibrary);
 async function rmReloadAll() {
+  rmApplyUserPrefs();
   await Promise.all([rmLoadRoutes(), rmLoadEntries()]);
   renderReimbMap();
 }
@@ -8404,8 +8445,44 @@ function rmCoveredText(fromIso, toIso) {
   const fa = `${RM_MONTHS_FULL[+a[2] - 1]} ${+a[3]}`, fb = `${RM_MONTHS_FULL[+b[2] - 1]} ${+b[3]}, ${b[1]}`;
   return a[1] === b[1] ? `${fa} - ${fb}` : `${fa}, ${a[1]} - ${fb}`;
 }
-function rmLsGet(key, fallback) { try { const v = localStorage.getItem(key); return v === null ? fallback : v; } catch (e) { return fallback; } }
-function rmLsSet(key, val) { try { localStorage.setItem(key, val); } catch (e) { /* ignore */ } }
+/* Remembered form values (name, department, covered dates, rate) are kept
+   per account, so on a shared computer the next person never sees the
+   previous person's details. */
+function rmLsKey(key) { return key + ':' + (CURRENT_USER_ID || 'anon'); }
+function rmLsGet(key, fallback) { try { const v = localStorage.getItem(rmLsKey(key)); return v === null ? fallback : v; } catch (e) { return fallback; } }
+function rmLsSet(key, val) { try { localStorage.setItem(rmLsKey(key), val); } catch (e) { /* ignore */ } }
+let rmPrefsUser = null;
+function rmApplyUserPrefs() {
+  if (rmPrefsUser === CURRENT_USER_ID) return;
+  rmPrefsUser = CURRENT_USER_ID;
+  // Older versions saved these without an account; remove them.
+  try { ['rm_rate', 'rm_employee', 'rm_department', 'rm_cov_from', 'rm_cov_to'].forEach(k => localStorage.removeItem(k)); } catch (e) { /* ignore */ }
+  const today = rmTodayIso();
+  document.getElementById('rmGasRate').value = rmLsGet('rm_rate', '16');
+  document.getElementById('rmEmpName').value = rmLsGet('rm_employee', '');
+  document.getElementById('rmDept').value = rmLsGet('rm_department', 'Operation');
+  document.getElementById('rmCovFrom').value = rmLsGet('rm_cov_from', today.slice(0, 8) + '01');
+  document.getElementById('rmCovTo').value = rmLsGet('rm_cov_to', today);
+  rmGasUpdateAmount();
+}
+/* On log out: forget everything private that is still on screen or in
+   memory (entries, their screenshots, typed-in form values). */
+function rmClearPrivateState() {
+  reimbEntries = [];
+  rmEntriesExpanded = new Set();
+  rmEntryImageCache.clear();
+  rmParsed = null;
+  rmGasShot = null;
+  rmGasKmAuto = false;
+  rmOcrJob++;
+  rmPrefsUser = null;
+  ['rmGasFrom', 'rmGasTo', 'rmGasKm', 'rmComFrom', 'rmComTo', 'rmComMode', 'rmComWo', 'rmComWt', 'rmComNote',
+    'rmSupDesc', 'rmSupNote', 'rmSupAmount', 'rmOthNote', 'rmOthAmount', 'rmEmpName', 'rmDept'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  try { renderReimbMap(); } catch (e) { /* ignore */ }
+}
 function rmParseNum(v) { const n = parseFloat(String(v == null ? '' : v).replace(/[₱,\s]/g, '')); return isFinite(n) ? n : null; }
 
 function rmEntryAmount(e) {
@@ -8984,11 +9061,11 @@ async function rmGenerateEntriesDocx() {
 (function rmInitEntryForm() {
   const today = rmTodayIso();
   ['rmGasDate', 'rmComDate', 'rmSupDate', 'rmOthDate'].forEach(id => { document.getElementById(id).value = today; });
-  document.getElementById('rmGasRate').value = rmLsGet('rm_rate', '16');
-  document.getElementById('rmEmpName').value = rmLsGet('rm_employee', '');
-  document.getElementById('rmDept').value = rmLsGet('rm_department', 'Operation');
-  document.getElementById('rmCovFrom').value = rmLsGet('rm_cov_from', today.slice(0, 8) + '01');
-  document.getElementById('rmCovTo').value = rmLsGet('rm_cov_to', today);
+  // Saved per-account values are filled in after login (rmApplyUserPrefs).
+  document.getElementById('rmGasRate').value = '16';
+  document.getElementById('rmDept').value = 'Operation';
+  document.getElementById('rmCovFrom').value = today.slice(0, 8) + '01';
+  document.getElementById('rmCovTo').value = today;
   rmGasUpdateAmount();
 })();
 
