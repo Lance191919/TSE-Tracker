@@ -441,8 +441,19 @@
   .pms-hist-add { display: flex; gap: 8px; flex-wrap: wrap; }
   .pms-hist-add input[type="date"] { width: 160px; }
   .pms-hist-add input[type="text"] { flex: 1; min-width: 120px; }
-  .pms-next-tag.pms-soon { color: var(--amber); border-color: rgba(224,138,60,0.45); }
-  .pms-next-tag.pms-overdue { color: var(--red); border-color: rgba(229,83,75,0.5); }
+  .pms-summary-cards { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 700px) { .pms-summary-cards { grid-template-columns: repeat(2, 1fr); } }
+  .stat.pms-clickable { cursor: pointer; transition: border-color 0.15s; }
+  .stat.pms-clickable:hover, .stat.pms-clickable:focus-visible { border-color: var(--accent); outline: none; }
+  .stat.pms-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .stat.pms-stat-overdue .num { color: var(--red); }
+  .pms-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; border: 1px solid var(--border); color: var(--muted); }
+  .pms-chip-overdue { color: var(--red); border-color: rgba(239,91,96,0.5); background: rgba(239,91,96,0.1); }
+  .pms-chip-soon { color: var(--amber); border-color: rgba(224,138,60,0.45); background: rgba(224,138,60,0.1); }
+  .pms-chip-ok { color: var(--green); border-color: rgba(79,191,122,0.4); }
+  .status-badge.pms-done-btn { background: transparent; border: 1px solid rgba(79,191,122,0.45); }
+  .status-badge.pms-done-btn:hover { background: rgba(79,191,122,0.15); }
+  @media (max-width: 640px) { .pms-chip { font-size: 11px; padding: 3px 8px; } }
   @media (max-width: 640px) {
     .pms-hist-row { grid-template-columns: 1fr 1fr 32px; }
     .pms-hist-row .pms-hist-notes { grid-column: 1 / 3; }
@@ -1108,18 +1119,22 @@
       </div>
     </div>
 
-    <div class="summary">
-      <div class="stat">
+    <div class="summary pms-summary-cards" id="pmsSummaryCards">
+      <div class="stat pms-clickable" data-pmsfilter="all" role="button" tabindex="0" title="Ipakita lahat">
         <div class="num" id="statSiteTotal">0</div>
         <div class="label">Total Sites</div>
       </div>
-      <div class="stat">
-        <div class="num" id="statClusterTotal">0</div>
-        <div class="label">Clusters</div>
+      <div class="stat pms-stat-overdue pms-clickable" data-pmsfilter="overdue" role="button" tabindex="0" title="Ipakita ang mga overdue">
+        <div class="num" id="statPmsOverdue">0</div>
+        <div class="label">🔴 Overdue</div>
       </div>
-      <div class="stat complete">
-        <div class="num" id="statMarkDone">0</div>
-        <div class="label">Marked Done</div>
+      <div class="stat pending pms-clickable" data-pmsfilter="soon" role="button" tabindex="0" title="Ipakita ang mga due sa loob ng 14 araw">
+        <div class="num" id="statPmsSoon">0</div>
+        <div class="label">🟠 Due soon (14 araw)</div>
+      </div>
+      <div class="stat complete pms-clickable" data-pmsfilter="ok" role="button" tabindex="0" title="Ipakita ang mga on schedule">
+        <div class="num" id="statPmsOk">0</div>
+        <div class="label">🟢 On schedule</div>
       </div>
     </div>
 
@@ -1130,6 +1145,13 @@
         <option value="GA">GA</option>
         <option value="AM">AM</option>
         <option value="ADMIN">ADMIN</option>
+      </select>
+      <select id="siteStatusFilter" aria-label="PMS status filter">
+        <option value="all">All PMS Status</option>
+        <option value="overdue">🔴 Overdue</option>
+        <option value="soon">🟠 Due soon (14 araw)</option>
+        <option value="ok">🟢 On schedule</option>
+        <option value="none">⚪ Walang schedule</option>
       </select>
       <button class="secondary" id="siteRefreshBtn">🔄 Refresh</button>
       <button class="secondary" id="siteExportBtn">⬇ Export to Excel</button>
@@ -3406,11 +3428,12 @@ function exportSitesToExcel() {
   const rows = sites.map(s => ({
     Cluster: s.cluster, 'Site Name': s.name, TSE: s.tse, 'Operation Hours': s.hours,
     'Schedule Date': s.sched, 'Date Done': s.datedone, Mark: s.mark || '',
-    'Last PMS': (pmsNextFor(s.id) || {}).last ? pmsDisplayDate(pmsNextFor(s.id).last) : '',
-    'Next PMS': (pmsNextFor(s.id) || {}).next ? pmsDisplayDate(pmsNextFor(s.id).next) : ''
+    'Last PMS': pmsSiteStatus(s).last ? pmsDisplayDate(pmsSiteStatus(s).last) : '',
+    'Next PMS': pmsSiteStatus(s).due ? pmsDisplayDate(pmsSiteStatus(s).due) : '',
+    'PMS Status': { overdue: 'Overdue', soon: 'Due soon', ok: 'On schedule', none: 'Walang schedule' }[pmsSiteStatus(s).status]
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 18 }, { wch: 18 }];
+  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 16 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Sites');
   XLSX.writeFile(wb, `sites_tracker_${todayStr()}.xlsx`);
@@ -3620,28 +3643,49 @@ function pmsHistoryFor(siteId) {
   return pmsHistory.filter(h => h.siteId === siteId)
     .sort((a, b) => String(b.dateDone || '').localeCompare(String(a.dateDone || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 }
-function pmsNextFor(siteId) {
-  const latest = pmsHistoryFor(siteId)[0];
-  return latest ? { last: latest.dateDone, next: pmsAddMonths(latest.dateDone, PMS_INTERVAL_MONTHS) } : null;
+const PMS_SOON_DAYS = 14;
+function pmsShortDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? `${PMS_MONTHS_FULL[+m[2] - 1].slice(0, 3)} ${+m[3]}, ${m[1]}` : '';
 }
-function pmsNextTagHtml(siteId) {
-  const info = pmsNextFor(siteId);
-  if (!info) return '';
-  const days = pmsDaysUntil(info.next);
-  const cls = days < 0 ? ' pms-overdue' : (days <= 14 ? ' pms-soon' : '');
-  const title = days < 0 ? `Overdue nang ${-days} araw` : (days === 0 ? 'Ngayong araw' : `Sa loob ng ${days} araw`);
-  return `<span class="lws-tag pms-next-tag${cls}" title="${title}">Next PMS: ${escapeHtml(pmsDisplayDate(info.next))}</span>`;
+/* A site's PMS status, worked out from dates — never set by hand.
+   due = Schedule Date if someone rescheduled it to after the last PMS,
+   otherwise last PMS + 3 months. */
+function pmsSiteStatus(site) {
+  const latest = pmsHistoryFor(site.id)[0];
+  const last = latest ? latest.dateDone : null;
+  const schedIso = pmsParseDate(site.sched);
+  const due = (schedIso && (!last || schedIso > last)) ? schedIso : (last ? pmsAddMonths(last, PMS_INTERVAL_MONTHS) : null);
+  if (!due) return { status: 'none', due: null, last, days: null };
+  const days = pmsDaysUntil(due);
+  return { status: days < 0 ? 'overdue' : (days <= PMS_SOON_DAYS ? 'soon' : 'ok'), due, last, days };
+}
+function pmsDaysText(days) {
+  if (days === null || days === undefined) return '';
+  if (days < 0) return `overdue nang ${-days} araw`;
+  if (days === 0) return 'ngayong araw';
+  return `sa loob ng ${days} araw`;
+}
+function pmsStatusChipHtml(site) {
+  const st = pmsSiteStatus(site);
+  const text = st.status === 'overdue' ? `🔴 Overdue · ${pmsShortDate(st.due)}`
+    : st.status === 'soon' ? `🟠 Due ${pmsShortDate(st.due)}`
+    : st.status === 'ok' ? `🟢 Next PMS: ${pmsShortDate(st.due)}`
+    : '⚪ Walang schedule';
+  const title = st.due ? `Susunod na PMS: ${pmsDisplayDate(st.due)} (${pmsDaysText(st.days)})` : 'Wala pang naitalang PMS o Schedule Date';
+  return `<span class="pms-chip pms-chip-${st.status}" title="${escapeHtml(title)}">${escapeHtml(text)}</span>`;
 }
 
 function pmsHistorySectionHtml(s) {
   const hist = pmsHistoryFor(s.id);
-  const info = pmsNextFor(s.id);
-  let summary = 'Wala pang naitalang PMS. Kapag ginawang DONE ang Mark, kusa itong maitatala rito.';
-  if (info) {
-    const days = pmsDaysUntil(info.next);
-    const when = days < 0 ? `<span class="pms-overdue-text">overdue nang ${-days} araw</span>` : (days === 0 ? 'ngayong araw' : `sa loob ng ${days} araw`);
-    summary = `Huling PMS: <strong>${escapeHtml(pmsDisplayDate(info.last))}</strong> · Susunod na PMS: <strong>${escapeHtml(pmsDisplayDate(info.next))}</strong> (${when})`;
+  const st = pmsSiteStatus(s);
+  const parts = [];
+  parts.push(st.last ? `Huling PMS: <strong>${escapeHtml(pmsDisplayDate(st.last))}</strong>` : 'Wala pang naitalang PMS');
+  if (st.due) {
+    const when = st.status === 'overdue' ? `<span class="pms-overdue-text">${pmsDaysText(st.days)}</span>` : pmsDaysText(st.days);
+    parts.push(`Susunod na PMS: <strong>${escapeHtml(pmsDisplayDate(st.due))}</strong> (${when})`);
   }
+  const summary = parts.join(' · ') + (st.last ? '' : '. Pindutin ang "✓ PMS Done" kapag naisagawa na.');
   const rows = hist.map(h => `
       <div class="pms-hist-row">
         <span class="pms-hist-date">${escapeHtml(pmsDisplayDate(h.dateDone))}</span>
@@ -3683,11 +3727,26 @@ async function pmsDeleteHistory(id, skipConfirm) {
   const h = pmsHistory.find(x => x.id === id);
   if (!h) return;
   if (!skipConfirm && !confirm(`Tanggalin ang PMS History entry na ${pmsDisplayDate(h.dateDone)}?`)) return;
+  const wasLatest = (pmsHistoryFor(h.siteId)[0] || {}).id === id;
   const prev = pmsHistory.slice();
   pmsHistory = pmsHistory.filter(x => x.id !== id);
   renderSites();
   const result = await dbDelete('pmsHistory', id, labelFor('pmsHistory', h));
-  if (!result.ok) { pmsHistory = prev; renderSites(); }
+  if (!result.ok) { pmsHistory = prev; renderSites(); return; }
+  const site = sites.find(s => s.id === h.siteId);
+  if (!site || !wasLatest) return;
+  // The removed PMS was the latest one: put Date Done / Schedule Date back
+  // to the previous PMS (a manually rescheduled Schedule Date is kept).
+  const before = pmsHistoryFor(site.id)[0];
+  const patch = { datedone: before ? pmsDisplayDate(before.dateDone) : '', mark: before ? 'DONE' : '' };
+  if (pmsParseDate(site.sched) === pmsAddMonths(h.dateDone, PMS_INTERVAL_MONTHS)) {
+    patch.sched = before ? pmsDisplayDate(pmsAddMonths(before.dateDone, PMS_INTERVAL_MONTHS)) : '';
+  }
+  const prevSite = { datedone: site.datedone, mark: site.mark, sched: site.sched };
+  Object.assign(site, patch);
+  renderSites();
+  const r2 = await dbUpdate('sites', site.id, patch);
+  if (!r2.ok) { Object.assign(site, prevSite); renderSites(); }
 }
 
 async function pmsAddHistoryFromForm(siteId) {
@@ -3700,22 +3759,63 @@ async function pmsAddHistoryFromForm(siteId) {
   if (pmsHistory.some(h => h.siteId === siteId && h.dateDone === date)) {
     if (!confirm(`May entry na para sa ${pmsDisplayDate(date)}. Idagdag pa rin?`)) return;
   }
-  await pmsAddHistory(site, date, tse, notes, 'manual');
+  const latest = pmsHistoryFor(siteId)[0];
+  if (!latest || date >= latest.dateDone) await pmsRecordDone(site, date, tse, notes, 'manual');
+  else await pmsAddHistory(site, date, tse, notes, 'manual');   // older PMS being back-filled
+}
+
+/* Records a finished PMS: History entry + Date Done = that date +
+   Schedule Date = that date + 3 months (shown as Next PMS). */
+async function pmsRecordDone(site, dateIso, tse, notes, source) {
+  const prev = { datedone: site.datedone, sched: site.sched, mark: site.mark };
+  site.datedone = pmsDisplayDate(dateIso);
+  site.sched = pmsDisplayDate(pmsAddMonths(dateIso, PMS_INTERVAL_MONTHS));
+  site.mark = 'DONE';
+  const ok = await pmsAddHistory(site, dateIso, tse, notes, source);
+  if (!ok) { Object.assign(site, prev); renderSites(); return false; }
+  const result = await dbUpdate('sites', site.id, { datedone: site.datedone, sched: site.sched, mark: site.mark });
+  if (!result.ok) { Object.assign(site, prev); renderSites(); }
+  return true;
+}
+
+async function pmsDoneToday(siteId) {
+  const site = sites.find(s => s.id === siteId);
+  if (!site) return;
+  const today = pmsTodayIso();
+  if (pmsHistory.some(h => h.siteId === siteId && h.dateDone === today)) {
+    alert(`Naitala na ang PMS ng "${site.name}" ngayong araw.`);
+    return;
+  }
+  const next = pmsAddMonths(today, PMS_INTERVAL_MONTHS);
+  if (!confirm(`Naisagawa na ang PMS sa "${site.name}" ngayong araw (${pmsDisplayDate(today)})?\n\nMaitatala ito sa PMS History, at magiging ${pmsDisplayDate(next)} ang susunod na PMS.\n\n(Para sa ibang petsa, buksan ang site at gamitin ang "+ Add sa History".)`)) return;
+  await pmsRecordDone(site, today, site.tse, '', 'button');
 }
 
 function renderSites() {
   const teamFilterVal = document.getElementById('siteTeamFilter').value;
-  const filtered = teamFilterVal === 'all' ? sites : sites.filter(s => (s.team || 'TSE') === teamFilterVal);
+  const statusFilterVal = document.getElementById('siteStatusFilter').value;
+  const teamFiltered = teamFilterVal === 'all' ? sites : sites.filter(s => (s.team || 'TSE') === teamFilterVal);
+  const statusOf = new Map(teamFiltered.map(s => [s.id, pmsSiteStatus(s)]));
+  const filtered = statusFilterVal === 'all' ? teamFiltered : teamFiltered.filter(s => statusOf.get(s.id).status === statusFilterVal);
+  if (statusFilterVal !== 'all') {
+    // Most urgent first when looking at a status.
+    filtered.sort((a, b) => String(statusOf.get(a.id).due || '9999').localeCompare(String(statusOf.get(b.id).due || '9999')));
+  }
 
-  document.getElementById('statSiteTotal').textContent = sites.length;
-  document.getElementById('statClusterTotal').textContent = new Set(sites.map(s => s.cluster)).size;
-  document.getElementById('statMarkDone').textContent = sites.filter(s => (s.mark || '').toUpperCase().startsWith('DONE')).length;
+  const countOf = st => teamFiltered.filter(s => statusOf.get(s.id).status === st).length;
+  document.getElementById('statSiteTotal').textContent = teamFiltered.length;
+  document.getElementById('statPmsOverdue').textContent = countOf('overdue');
+  document.getElementById('statPmsSoon').textContent = countOf('soon');
+  document.getElementById('statPmsOk').textContent = countOf('ok');
+  document.querySelectorAll('#pmsSummaryCards [data-pmsfilter]').forEach(card => {
+    card.classList.toggle('pms-active', card.dataset.pmsfilter === statusFilterVal && statusFilterVal !== 'all');
+  });
 
   const list = document.getElementById('sitesTableBody');
   list.innerHTML = '';
 
   if (filtered.length === 0) {
-    list.innerHTML = '<div class="lws-empty">No sites found.</div>';
+    list.innerHTML = `<div class="lws-empty">${statusFilterVal === 'all' ? 'No sites found.' : 'Walang site na may ganitong PMS status.'}</div>`;
     applyReadOnlyUI();
     refreshBranchOptions();
     return;
@@ -3727,7 +3827,7 @@ function renderSites() {
   clusters.forEach(cluster => {
     const groupKey = cluster || 'Unassigned';
     const groupItems = filtered.filter(s => s.cluster === cluster);
-    const isGroupOpen = sitesGroupsExpanded.has(groupKey);
+    const isGroupOpen = sitesGroupsExpanded.has(groupKey) || statusFilterVal !== 'all';
 
     const groupHeader = document.createElement('div');
     groupHeader.className = 'lws-group-header collapsible' + (isGroupOpen ? ' expanded' : '');
@@ -3752,8 +3852,8 @@ function renderSites() {
         <div class="lws-row-header" data-id="${s.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
           <span class="lws-name">${escapeHtml(s.name)}</span>
           ${s.cluster ? `<span class="lws-tag">${escapeHtml(s.cluster)}</span>` : ''}
-          ${pmsNextTagHtml(s.id)}
-          ${markStatusBadgeHtml(s.id, s.mark)}
+          ${pmsStatusChipHtml(s)}
+          <button type="button" class="status-badge complete pms-done-btn" data-id="${s.id}" data-action="pms-done-today" title="Itala na naisagawa ang PMS ngayong araw">✓ PMS Done</button>
           <span class="lws-chevron">▾</span>
         </div>
         <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
@@ -3767,9 +3867,11 @@ function renderSites() {
               <label>Operation Hours</label>
               <div class="lws-static-value">${escapeHtml(s.hours || '—')}</div>
             </div>
-            ${lwsField('Schedule Date', s.id + '__sched', 'sched', s.sched)}
-            ${lwsField('Date Done', s.id + '__datedone', 'datedone', s.datedone)}
-            ${lwsField('Mark', s.id + '__mark', 'mark', s.mark)}
+            ${lwsField('Schedule Date (Next PMS)', s.id + '__sched', 'sched', pmsSiteStatus(s).due ? pmsDisplayDate(pmsSiteStatus(s).due) : (s.sched || ''))}
+            <div class="field">
+              <label>Date Done (Huling PMS)</label>
+              <div class="lws-static-value">${escapeHtml(pmsSiteStatus(s).last ? pmsDisplayDate(pmsSiteStatus(s).last) : (s.datedone || '—'))}</div>
+            </div>
             <div class="field">
               <label>Team</label>
               ${teamSelectHtml(s.id, s.team)}
@@ -3792,57 +3894,21 @@ function renderSites() {
 async function updateSiteField(id, field, value) {
   const site = sites.find(s => s.id === id);
   if (!site) return;
+  if (field === 'sched') {
+    // Rescheduling the next PMS: store readable dates as "Month D, YYYY".
+    const iso = pmsParseDate(value);
+    if (iso) value = pmsDisplayDate(iso);
+    else if (String(value || '').trim()) alert('Hindi mabasa ang petsa. Halimbawa ng tamang format: October 30, 2026');
+  }
   const prevValue = site[field];
   site[field] = value;
   const result = await dbUpdate('sites', id, { [field]: value });
   if (!result.ok) {
     site[field] = prevValue;
     renderSites();
-  }
-}
-
-/* Mark → DONE: save the PMS in History (date = Date Done, or today if
-   Date Done is blank/unreadable — which also fills in Date Done), so
-   Next PMS becomes that date + 3 months.
-   DONE → Pending: if the latest History entry came from a Mark click less
-   than 24 hours ago, it was most likely a mis-click, so that entry is
-   removed again. Otherwise this starts a new PMS cycle: Date Done is
-   cleared (the finished PMS stays in History). */
-async function toggleSiteMark(id) {
-  const site = sites.find(s => s.id === id);
-  if (!site) return;
-  const prev = { mark: site.mark, datedone: site.datedone };
-  const isDone = (site.mark || '').trim().toUpperCase().startsWith('DONE');
-  const patch = {};
-
-  if (!isDone) {
-    let doneIso = pmsParseDate(site.datedone);
-    if (!doneIso) {
-      doneIso = pmsTodayIso();
-      site.datedone = pmsDisplayDate(doneIso);
-      patch.datedone = site.datedone;
-    }
-    site.mark = 'DONE';
-    patch.mark = 'DONE';
+  } else if (field === 'sched') {
     renderSites();
-    const result = await dbUpdate('sites', id, patch);
-    if (!result.ok) { site.mark = prev.mark; site.datedone = prev.datedone; renderSites(); return; }
-    if (!pmsHistory.some(h => h.siteId === id && h.dateDone === doneIso)) {
-      await pmsAddHistory(site, doneIso, site.tse, '', 'mark');
-    }
-    return;
   }
-
-  const latest = pmsHistoryFor(id)[0];
-  const createdMs = latest && latest.createdAt ? Date.parse(latest.createdAt) : NaN;
-  const isUndo = !!latest && latest.source === 'mark' && !isNaN(createdMs) && (Date.now() - createdMs) < 24 * 3600 * 1000;
-  site.mark = '';
-  patch.mark = '';
-  if (!isUndo && site.datedone) { site.datedone = ''; patch.datedone = ''; }
-  renderSites();
-  const result = await dbUpdate('sites', id, patch);
-  if (!result.ok) { site.mark = prev.mark; site.datedone = prev.datedone; renderSites(); return; }
-  if (isUndo) await pmsDeleteHistory(latest.id, true);
 }
 
 async function deleteSite(id) {
@@ -3860,6 +3926,21 @@ async function deleteSite(id) {
 
 document.getElementById('siteAddBtn').addEventListener('click', addSite);
 document.getElementById('siteTeamFilter').addEventListener('change', renderSites);
+document.getElementById('siteStatusFilter').addEventListener('change', renderSites);
+document.getElementById('pmsSummaryCards').addEventListener('click', (e) => {
+  const card = e.target.closest('[data-pmsfilter]');
+  if (!card) return;
+  const sel = document.getElementById('siteStatusFilter');
+  sel.value = (card.dataset.pmsfilter === sel.value) ? 'all' : card.dataset.pmsfilter;
+  renderSites();
+});
+document.getElementById('pmsSummaryCards').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('[data-pmsfilter]');
+  if (!card) return;
+  e.preventDefault();
+  card.click();
+});
 document.getElementById('siteRefreshBtn').addEventListener('click', () => location.reload());
 document.getElementById('siteExportBtn').addEventListener('click', exportSitesToExcel);
 document.getElementById('siteImportBtn').addEventListener('click', () => {
@@ -3874,8 +3955,8 @@ document.getElementById('siteImportFile').addEventListener('change', (e) => {
 document.getElementById('sitesTableBody').addEventListener('click', (e) => {
   const groupHeader = e.target.closest('[data-action="toggle-group"]');
   if (groupHeader) { toggleAccordionGroup(groupHeader, sitesGroupsExpanded); return; }
-  const markBtn = e.target.closest('button[data-action="toggle-mark"]');
-  if (markBtn) { toggleSiteMark(markBtn.dataset.id); return; }
+  const doneBtn = e.target.closest('button[data-action="pms-done-today"]');
+  if (doneBtn) { pmsDoneToday(doneBtn.dataset.id); return; }
   const pmsAddBtn = e.target.closest('button[data-action="pms-add-history"]');
   if (pmsAddBtn) { pmsAddHistoryFromForm(pmsAddBtn.dataset.id); return; }
   const pmsDelBtn = e.target.closest('button[data-action="pms-del-history"]');
