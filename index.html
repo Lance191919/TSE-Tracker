@@ -1606,7 +1606,7 @@
     </div>
 
     <h3 class="rm-section-title">Route Library</h3>
-    <div class="rm-sub">Naka-save rito ang screenshot ng bawat ruta (shared sa buong team), kaya hindi na kailangang mag-screenshot ulit para sa paulit-ulit na biyahe.</div>
+    <div class="rm-sub">Naka-save rito ang screenshot ng bawat ruta mo, kaya hindi na kailangang mag-screenshot ulit para sa paulit-ulit na biyahe. Ikaw lang ang nakakakita ng mga ruta mo.</div>
     <div class="add-card" id="rmAddCard">
       <div class="add-grid rm-add-grid">
         <div class="field">
@@ -2619,9 +2619,9 @@ function activityEntityType(entity, row) {
 }
 
 async function logActivity(action, entity, label, row) {
-  // Personal reimbursement entries are private to their owner — don't
+  // Reimbursement entries and routes are private to their owner — don't
   // announce them in the Activity Log that every account can read.
-  if (entity === 'reimbEntries') return;
+  if (entity === 'reimbEntries' || entity === 'reimbRoutes') return;
   try {
     await sb.from('activity_log').insert([{
       actor_name: CURRENT_USER_NAME || 'Unknown',
@@ -7894,6 +7894,7 @@ async function rmBuildXlsx(templateB64, info, data) {
 
 
 /* ---------- Reimbursement Map — UI ----------
+   (Route Library rows are private per account: RLS user_id = auth.uid().)
    Route Library rows live in public.reimbursement_routes (one Google Maps
    screenshot per From → To route, stored as a data URL in image_data). The
    list is loaded WITHOUT image_data so the tab stays light; screenshots are
@@ -8469,6 +8470,9 @@ function rmApplyUserPrefs() {
    memory (entries, their screenshots, typed-in form values). */
 function rmClearPrivateState() {
   reimbEntries = [];
+  reimbRoutes = [];
+  rmRoutesExpanded = new Set();
+  rmImageCache.clear();
   rmEntriesExpanded = new Set();
   rmEntryImageCache.clear();
   rmParsed = null;
@@ -8684,10 +8688,9 @@ function rmClearGasShot() {
 }
 
 /* Saves this screenshot as the route's library screenshot (new route, or
-   replacing the old one) and returns the route id. Viewer accounts can't
-   write the shared library, so for them the screenshot stays on the entry. */
+   replacing the old one) and returns the route id. Each account has its
+   own private Route Library. */
 async function rmUpsertRouteShot(from, to, km, img) {
-  if (isViewer()) { const r = rmFindRoute(from, to); return r ? r.id : null; }
   const existing = rmFindRoute(from, to);
   if (existing) {
     await rmSetRouteImage(existing.id, img, km);
