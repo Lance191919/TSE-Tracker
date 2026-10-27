@@ -869,6 +869,9 @@
   .rm-pill { background: var(--panel2); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 999px; font-size: 13px; }
   .rm-pill.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   .rm-form[hidden] { display: none; }
+  /* Always show the dropdown arrow on place fields, so it's clear there's a list. */
+  input[list="rmPlaceOptions"]::-webkit-calendar-picker-indicator,
+  input[list="rmModeOptions"]::-webkit-calendar-picker-indicator { display: block; opacity: 0.85; cursor: pointer; filter: invert(0.85); }
   .rm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; margin-bottom: 12px; }
   .rm-grid .rm-wide { grid-column: span 2; }
   @media (max-width: 640px) { .rm-grid .rm-wide { grid-column: span 1; } }
@@ -1450,11 +1453,11 @@
           </div>
           <div class="field">
             <label for="rmGasFrom">Travel From</label>
-            <input type="text" id="rmGasFrom" list="rmPlaceOptions" placeholder="e.g. Jaka Building">
+            <input type="text" id="rmGasFrom" list="rmPlaceOptions" placeholder="Pumili o mag-type…">
           </div>
           <div class="field">
             <label for="rmGasTo">Travel To</label>
-            <input type="text" id="rmGasTo" list="rmPlaceOptions" placeholder="e.g. MG2 Tower">
+            <input type="text" id="rmGasTo" list="rmPlaceOptions" placeholder="Pumili o mag-type…">
           </div>
         </div>
         <div class="rm-shot" id="rmShotZone" tabindex="0" role="button" aria-label="Pumili o mag-paste ng Google Maps screenshot">
@@ -8179,15 +8182,32 @@ function rmRenderPreview() {
   box.innerHTML = html;
 }
 
+/* Travel From / Travel To suggestions: every site in Lakiwin Sites and PMS
+   Status, plus every place this account has already used (its routes and
+   entries). Free text still works for places not on the list. Names that
+   only differ in capitals/spaces are listed once. */
+function rmPlaceSuggestions() {
+  const byKey = new Map();
+  const add = (name) => {
+    const n = String(name || '').trim();
+    if (!n) return;
+    const k = rmPlaceKey(n);
+    if (k && !byKey.has(k)) byKey.set(k, n);
+  };
+  (typeof lakiwinSites !== 'undefined' ? lakiwinSites : []).forEach(s => add(s.siteName));
+  (typeof sites !== 'undefined' ? sites : []).forEach(s => add(s.name));
+  reimbRoutes.forEach(r => { add(r.from); add(r.to); });
+  reimbEntries.forEach(e => { if (e.section === 'gas' || e.section === 'commute') { add(e.from); add(e.to); } });
+  if (rmParsed) rmParsed.groups.forEach(g => g.legs.forEach(l => { add(l.from); add(l.to); }));
+  return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
+}
+
 function rmRenderLibrary() {
   const list = document.getElementById('rmRouteList');
   const term = document.getElementById('rmSearchBox').value.trim().toLowerCase();
   document.getElementById('statRmRoutes').textContent = reimbRoutes.length;
 
-  const places = new Set();
-  reimbRoutes.forEach(r => { if (r.from) places.add(r.from); if (r.to) places.add(r.to); });
-  if (rmParsed) rmParsed.groups.forEach(g => g.legs.forEach(l => { if (l.from) places.add(l.from); if (l.to) places.add(l.to); }));
-  fillDatalist('rmPlaceOptions', Array.from(places).sort((a, b) => a.localeCompare(b)));
+  fillDatalist('rmPlaceOptions', rmPlaceSuggestions());
 
   if (rmLoadError) {
     list.innerHTML = `<div class="lws-empty">Hindi ma-load ang Route Library (${escapeHtml(rmLoadError)}). Kung bago pa lang ang tab na ito, siguraduhing na-run na ang <strong>add_reimbursement_map.sql</strong> sa Supabase.</div>`;
