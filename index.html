@@ -402,6 +402,8 @@
   }
   .lws-group-header.collapsible:hover { color: var(--text); }
   .lws-group-name { flex: 1; }
+  button.lws-group-delete { padding: 3px 10px; font-size: 11px; text-transform: none; letter-spacing: normal; opacity: 0.75; }
+  .lws-group-header:hover button.lws-group-delete, button.lws-group-delete:focus-visible { opacity: 1; }
   .lws-group-count {
     font-size: 11px;
     font-weight: 600;
@@ -5456,7 +5458,9 @@ function renderLandbasedAccounts() {
     groupHeader.setAttribute('role', 'button');
     groupHeader.setAttribute('tabindex', '0');
     groupHeader.setAttribute('aria-expanded', String(isGroupOpen));
-    groupHeader.innerHTML = `<span class="lws-group-name">${escapeHtml(groupKey)}</span><span class="lws-group-count">${groupItems.length}</span><span class="lws-group-chevron">▾</span>`;
+    groupHeader.innerHTML = `<span class="lws-group-name">${escapeHtml(groupKey)}</span>` +
+      `<button type="button" class="danger lws-group-delete viewer-hide" data-action="delete-lba-site" data-site="${rmAttr(site || '')}" title="Burahin ang lahat ng account ng site na ito">🗑 Delete Site</button>` +
+      `<span class="lws-group-count">${groupItems.length}</span><span class="lws-group-chevron">▾</span>`;
     list.appendChild(groupHeader);
 
     const groupRows = document.createElement('div');
@@ -5534,7 +5538,43 @@ document.getElementById('lbaImportFile').addEventListener('change', (e) => {
   importLandbasedFromExcel(file);
   e.target.value = '';
 });
+/* Deletes every account of one Landbased site in a single request — e.g.
+   to clear a site before importing its new accounts. Uses the same site
+   grouping as the list and the Team filter (not the search box), so a
+   search that hides some accounts can never leave stragglers behind. */
+async function deleteLandbasedSite(site) {
+  const teamFilterVal = document.getElementById('lbaTeamFilter').value;
+  const targets = landbasedAccounts.filter(a => (a.site || '') === (site || '') &&
+    (teamFilterVal === 'all' || (a.team || 'TSE') === teamFilterVal));
+  if (!targets.length) return;
+  const name = site || 'Unassigned';
+  const teamNote = teamFilterVal === 'all' ? '' : ` (team ${teamFilterVal} lang)`;
+  if (!confirm(`Burahin ang LAHAT ng ${targets.length} account ng "${name}"${teamNote}?\n\nHindi na ito maibabalik. Siguraduhing may kopya ka (Export to Excel) kung kailangan mo pa ang mga ito.`)) return;
+  const typed = prompt(`Para makasigurado, i-type ang DELETE para burahin ang ${targets.length} account ng "${name}":`);
+  if ((typed || '').trim().toUpperCase() !== 'DELETE') { alert('Hindi itinuloy ang pagbura.'); return; }
+
+  const ids = new Set(targets.map(a => a.id));
+  const prev = landbasedAccounts.slice();
+  landbasedAccounts = landbasedAccounts.filter(a => !ids.has(a.id));
+  renderLandbasedAccounts();
+  try {
+    const idList = Array.from(ids);
+    for (let i = 0; i < idList.length; i += 200) {
+      const { error } = await sb.from(ENTITY_TABLE.landbasedAccounts).delete().in('id', idList.slice(i, i + 200));
+      if (error) throw error;
+    }
+    logActivity('delete', 'landbasedAccounts', `${name}: ${targets.length} account(s) — buong site`);
+  } catch (err) {
+    console.error('deleteLandbasedSite failed', err);
+    alert('Hindi nabura ang site: ' + (err.message || err) + '\nI-click ang Refresh para makita ang kasalukuyang laman.');
+    landbasedAccounts = prev;
+    renderLandbasedAccounts();
+  }
+}
+
 document.getElementById('landbasedTableBody').addEventListener('click', (e) => {
+  const siteBtn = e.target.closest('button[data-action="delete-lba-site"]');
+  if (siteBtn) { e.stopPropagation(); deleteLandbasedSite(siteBtn.dataset.site); return; }
   const btn = e.target.closest('button[data-action="delete-landbased"]');
   if (btn) { deleteLandbasedAccount(btn.dataset.id); return; }
   const groupHeader = e.target.closest('[data-action="toggle-group"]');
@@ -5544,6 +5584,7 @@ document.getElementById('landbasedTableBody').addEventListener('click', (e) => {
 });
 document.getElementById('landbasedTableBody').addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (e.target.closest('button')) return;   // let buttons (e.g. Delete Site) handle their own keys
   const groupHeader = e.target.closest('[data-action="toggle-group"]');
   if (groupHeader) { e.preventDefault(); toggleAccordionGroup(groupHeader, lbaGroupsExpanded); return; }
   const rowHeader = e.target.closest('[data-action="toggle-row"]');
