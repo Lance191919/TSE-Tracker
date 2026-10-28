@@ -980,6 +980,10 @@
   .sr-sig-name { font-size: 13px; font-weight: 600; margin-top: 4px; }
   .sr-sig-title { font-size: 12px; color: var(--muted); }
   button.sr-more { width: 100%; }
+  .sr-paper-check { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; margin-bottom: 14px; background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; font-size: 13px; cursor: pointer; }
+  .sr-paper-check input { margin-top: 2px; width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
+  .sr-paper-note { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 10px; font-size: 13px; color: var(--muted); }
+  #srSigSection[hidden], .sr-paper-note[hidden] { display: none; }
   #srList .lws-row-header { flex-wrap: wrap; row-gap: 6px; }
   #srList .lws-row-header .lws-name { min-width: 140px; }
   #srList .lws-detail-actions { flex-wrap: wrap; }
@@ -1764,6 +1768,7 @@
         <div class="rm-title" id="srFormTitle">Bagong Service Report</div>
         <div class="sr-id-box">Service ID: <strong id="srIdDisplay">Kusang ibibigay pag-save</strong></div>
       </div>
+      <label class="sr-paper-check"><input type="checkbox" id="srPaper"> <span>📄 <strong>Mula sa papel</strong> — lumang report na napirmahan na sa papel (walang pirma rito, at hindi na ipapadala sa site)</span></label>
       <div class="rm-grid">
         <div class="field"><label for="srDate">Date</label><input type="date" id="srDate"></div>
         <div class="field"><label for="srMethod">Service method</label>
@@ -1788,6 +1793,8 @@
       <div id="srItems"></div>
       <button type="button" class="secondary rm-small" id="srAddItemBtn">+ Add Row</button>
 
+      <div class="sr-paper-note" id="srPaperNote" hidden>📄 Napirmahan na sa papel — hindi na kailangan ng pirma rito. Pagka-save, isulat sa kahon ng papel ang Service ID na ibibigay ng system.</div>
+      <div id="srSigSection">
       <div class="sr-section-title">Pirma</div>
       <div class="sr-pads">
         <div class="sr-pad-box">
@@ -1800,6 +1807,7 @@
           <canvas class="sr-pad" id="srVenuePad" aria-label="Pirma ng venue personnel"></canvas>
           <div class="sr-pad-row"><input type="text" id="srVenuePrinted" placeholder="Printed name" aria-label="Printed name ng venue personnel"><button type="button" class="secondary rm-small" id="srVenueClear">Ulitin</button></div>
         </div>
+      </div>
       </div>
 
       <div class="toolbar sr-form-actions">
@@ -2809,7 +2817,7 @@ const FIELD_MAP = {
   userProfiles: { id:'id', email:'email', role:'role', team:'team' },
   landbasedAccounts: { id:'id', site:'site', accountNo:'account_no', username:'username', mobileNumber:'mobile_number', operator:'operator', remarks:'remarks', team:'team' },
   troubleshootingEntries: { id:'id', title:'title', category:'category', symptom:'symptom', steps:'steps', altSteps:'alt_steps', notes:'notes' },
-  serviceReports: { id:'id', serviceNo:'service_no', serviceId:'service_id', date:'report_date', method:'service_method', siteId:'site_id', siteName:'site_name', tse:'tse_names', responseTime:'response_time', resolveTime:'resolve_time', duration:'duration', status:'status', items:'items', tseSignature:'tse_signature', tsePrinted:'tse_printed', venueSignature:'venue_signature', venuePrinted:'venue_printed', venueEmail:'venue_email', emailedAt:'emailed_at', emailedTo:'emailed_to', team:'team', createdBy:'created_by', createdAt:'created_at' },
+  serviceReports: { id:'id', serviceNo:'service_no', serviceId:'service_id', date:'report_date', method:'service_method', siteId:'site_id', siteName:'site_name', tse:'tse_names', responseTime:'response_time', resolveTime:'resolve_time', duration:'duration', status:'status', items:'items', tseSignature:'tse_signature', tsePrinted:'tse_printed', venueSignature:'venue_signature', venuePrinted:'venue_printed', venueEmail:'venue_email', emailedAt:'emailed_at', emailedTo:'emailed_to', signedOnPaper:'signed_on_paper', team:'team', createdBy:'created_by', createdAt:'created_at' },
   pmsHistory: { id:'id', siteId:'site_id', siteName:'site_name', dateDone:'date_done', tse:'tse', notes:'notes', source:'source', team:'team', createdAt:'created_at' },
   reimbRoutes: { id:'id', from:'route_from', to:'route_to', km:'km', image:'image_data', imgW:'img_w', imgH:'img_h', createdBy:'created_by' },
   reimbEntries: { id:'id', section:'section', date:'entry_date', from:'route_from', to:'route_to', km:'km', rate:'rate', mode:'mode', withoutTicket:'without_ticket', withTicket:'with_ticket', description:'description', note:'note', amount:'amount', routeId:'route_id', image:'image_data', imgW:'img_w', imgH:'img_h' }
@@ -9502,7 +9510,7 @@ const SR_RECORD_CC_DEFAULT = 'rac.tse@racphil.com';
 
 const SR_BROWN = [88, 48, 13];
 const SR_JSPDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-const SR_LIST_COLS = 'id, service_no, service_id, report_date, service_method, site_id, site_name, tse_names, response_time, resolve_time, duration, status, items, tse_printed, venue_printed, venue_email, emailed_at, emailed_to, team, created_by, created_at';
+const SR_LIST_COLS = 'id, service_no, service_id, report_date, service_method, site_id, site_name, tse_names, response_time, resolve_time, duration, status, items, tse_printed, venue_printed, venue_email, emailed_at, emailed_to, signed_on_paper, team, created_by, created_at';
 const SR_EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 
 /* ----- small helpers ----- */
@@ -9614,6 +9622,7 @@ function renderServiceReports() {
           <span class="lws-name">${escapeHtml(r.siteName || '—')}</span>
           <span class="lws-tag">${escapeHtml(pmsShortDate(r.date))}</span>
           ${r.method ? `<span class="lws-tag sr-hide-sm">${escapeHtml(r.method)}</span>` : ''}
+          ${r.signedOnPaper ? '<span class="lws-tag" title="Napirmahan sa papel">📄 Papel</span>' : ''}
           ${r.emailedAt ? '<span class="lws-tag sr-mailed" title="Naipadala na sa email ng site">✉ Sent</span>' : ''}
           <span class="status-badge display-only ${pending ? 'pending' : 'complete'}">${pending ? 'Pending' : '✓ Done'}</span>
           <span class="lws-chevron">▾</span>
@@ -9648,7 +9657,7 @@ function srDetailHtml(r) {
           : '<tr><td colspan="5" class="rm-muted">Walang detalye.</td></tr>'}</tbody>
       </table>
     </div>
-    <div class="sr-sigs" id="srSigs__${r.id}"><span class="rm-muted">Loading pirma…</span></div>
+    ${r.signedOnPaper ? '<div class="sr-paper-note">📄 Napirmahan sa papel — nasa papel na kopya ang mga pirma.</div>' : `<div class="sr-sigs" id="srSigs__${r.id}"><span class="rm-muted">Loading pirma…</span></div>`}
     ${srMailOpen.has(r.id) ? srMailPanelHtml(r) : ''}
     <div class="lws-detail-actions">
       <button type="button" data-id="${r.id}" data-action="sr-pdf">⬇ PDF</button>
@@ -9792,6 +9801,16 @@ function srSiteChanged() {
     : '';
 }
 
+/* "Mula sa papel": hides the signature pads (the paper copy has the real
+   signatures). Stays ticked for the next new report, for typing in a stack
+   of old papers one after another. */
+function srApplyPaperMode() {
+  const on = document.getElementById('srPaper').checked;
+  document.getElementById('srSigSection').hidden = on;
+  document.getElementById('srPaperNote').hidden = !on;
+  if (!on && srPads) requestAnimationFrame(() => { srPads.tse.setup(); srPads.venue.setup(); });
+}
+
 async function srOpenForm(id) {
   let r = null;
   if (id) {
@@ -9815,6 +9834,8 @@ async function srOpenForm(id) {
   document.getElementById('srVenuePrinted').value = r ? (r.venuePrinted || '') : '';
   srRenderItems(r && Array.isArray(r.items) && r.items.length ? r.items : [{}]);
   srUpdateDuration();
+  document.getElementById('srPaper').checked = r ? !!r.signedOnPaper : rmLsGet('sr_paper', '') === '1';
+  srApplyPaperMode();
   if (!srPads) srPads = { tse: srMakePad(document.getElementById('srTsePad')), venue: srMakePad(document.getElementById('srVenuePad')) };
   // Size the pads now that the form is visible.
   requestAnimationFrame(() => {
@@ -9853,9 +9874,10 @@ async function srSave() {
   if (email && !SR_EMAIL_RE.test(email)) { alert('Mali ang format ng Site email.'); document.getElementById('srEmail').focus(); return; }
   const items = srReadItems().filter(it => Object.values(it).some(Boolean));
   if (!items.length) { alert('Maglagay ng kahit isang row (Problem o Action taken).'); return; }
-  const venueSig = srPads.venue.toDataURL();
-  const tseSig = srPads.tse.toDataURL();
-  if (!venueSig && !confirm('Wala pang pirma ang Venue personnel. I-save pa rin?')) return;
+  const paper = document.getElementById('srPaper').checked;
+  const venueSig = paper ? '' : srPads.venue.toDataURL();
+  const tseSig = paper ? '' : srPads.tse.toDataURL();
+  if (!paper && !venueSig && !confirm('Wala pang pirma ang Venue personnel. I-save pa rin?')) return;
 
   const site = srLakiwinSite(siteName);
   const responseTime = document.getElementById('srResponse').value;
@@ -9866,7 +9888,8 @@ async function srSave() {
     responseTime: responseTime || null, resolveTime: resolveTime || null, duration: srDuration(responseTime, resolveTime),
     items, tseSignature: tseSig || null, tsePrinted: document.getElementById('srTsePrinted').value.trim(),
     venueSignature: venueSig || null, venuePrinted: document.getElementById('srVenuePrinted').value.trim(),
-    venueEmail: email || null
+    venueEmail: email || null,
+    signedOnPaper: paper
   };
   const btn = document.getElementById('srSaveBtn');
   btn.disabled = true;
@@ -9907,7 +9930,12 @@ async function srSave() {
   const row$ = document.querySelector(`#srList .lws-row[data-id="${savedId}"]`);
   if (row$) row$.scrollIntoView({ behavior: 'smooth', block: 'center' });
   srPdfCache.delete(savedId);
-  if (saved && confirm(`Na-save ang ${saved.serviceId}!\n\nIpadala na ang kopya sa site?`)) srOpenMail(savedId);
+  rmLsSet('sr_paper', paper ? '1' : '');
+  if (saved && paper) {
+    alert(`Na-save! ✍ Isulat ang Service ID na ito sa kahon ng papel:\n\n${saved.serviceId}`);
+  } else if (saved && confirm(`Na-save ang ${saved.serviceId}!\n\nIpadala na ang kopya sa site?`)) {
+    srOpenMail(savedId);
+  }
 }
 
 /* ----- PDF ----- */
@@ -10024,6 +10052,12 @@ async function srBuildPdf(r) {
   };
   sig(r.tseSignature, 55, 46);
   sig(r.venueSignature, 136, 59);
+  if (r.signedOnPaper) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5); doc.setTextColor(110, 110, 110);
+    doc.text('(Signed on paper copy)', 78, lineY - (r.tsePrinted ? 4.2 : 0.6), { align: 'center' });
+    doc.text('(Signed on paper copy)', (133 + X1) / 2, lineY - (r.venuePrinted ? 4.2 : 0.6), { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+  }
 
   const pages = doc.getNumberOfPages();
   if (pages > 1) {
@@ -10234,6 +10268,7 @@ document.getElementById('srTse').addEventListener('change', (e) => {
   const printed = document.getElementById('srTsePrinted');
   if (!printed.value.trim()) printed.value = e.target.value.split(',')[0].trim();
 });
+document.getElementById('srPaper').addEventListener('change', srApplyPaperMode);
 document.getElementById('srTseClear').addEventListener('click', () => srPads && srPads.tse.clear());
 document.getElementById('srVenueClear').addEventListener('click', () => srPads && srPads.venue.clear());
 document.getElementById('srSearchBox').addEventListener('input', () => { srShowCount = 60; renderServiceReports(); });
