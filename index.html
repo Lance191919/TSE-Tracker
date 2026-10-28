@@ -1996,7 +1996,7 @@
           <input type="text" id="lwsDateInstallation" placeholder="e.g. August 28, 2026">
         </div>
         <div class="field">
-          <label for="lwsLaunchingDate">Launching Date</label>
+          <label for="lwsLaunchingDate">Official Commence Date</label>
           <input type="text" id="lwsLaunchingDate" placeholder="e.g. August 28, 2026">
         </div>
         <div class="field">
@@ -2068,6 +2068,8 @@
         <option value="name-desc">Sort: Z → A</option>
         <option value="install-desc">Date of Installation: pinakabago</option>
         <option value="install-asc">Date of Installation: pinakaluma</option>
+        <option value="commence-desc">Official Commence Date: pinakabago</option>
+        <option value="commence-asc">Official Commence Date: pinakaluma</option>
       </select>
       <button class="secondary" id="lwsRefreshBtn">🔄 Refresh</button>
       <button class="secondary" id="lwsExportBtn">⬇ Export to Excel</button>
@@ -5582,7 +5584,7 @@ function exportLakiwinSitesToExcel() {
   const rows = lakiwinSites.map(s => ({
     'Site Name': s.siteName, Operator: s.operator, 'Outlet ID': s.outletId,
     'Game Offering': s.gameOffering, Address: s.address,
-    'Date of Installation': s.dateInstallation, 'Launching Date': s.launchingDate,
+    'Date of Installation': s.dateInstallation, 'Official Commence Date': s.launchingDate,
     'Contact Person': s.contactPerson, Designation: s.designation, 'Contact Number': s.contactNumber,
     Terminal: s.terminal, Tablet: s.tablet, 'Power Adapter': s.powerAdapter,
     'Additional Tablet': s.additionalTablet, 'VNC Installed': s.vncInstalled,
@@ -5750,7 +5752,7 @@ async function importLakiwinSitesFromExcel(file) {
       else if (norm.includes('gameoffering')) headerMap.gameOffering = key;
       else if (norm === 'address') headerMap.address = key;
       else if (norm.includes('dateofinstallation') || norm.includes('dateinstall')) headerMap.dateInstallation = key;
-      else if (norm.includes('launchingdate') || norm.includes('launchdate')) headerMap.launchingDate = key;
+      else if (norm.includes('launchingdate') || norm.includes('launchdate') || norm.includes('commencedate') || norm.includes('commencementdate')) headerMap.launchingDate = key;
       else if (norm.includes('contactperson')) headerMap.contactPerson = key;
       else if (norm === 'designation') headerMap.designation = key;
       else if (norm.includes('contactnumber')) headerMap.contactNumber = key;
@@ -5955,14 +5957,16 @@ function renderLakiwinSites() {
     return haystack.includes(searchTerm);
   });
 
-  // Sort by the chosen order (site name by default). Sites with no readable
-  // Date of Installation always go to the bottom, A → Z among themselves.
+  // Sort by the chosen order (site name by default). When sorting by a date
+  // (Date of Installation / Official Commence Date), sites without a
+  // readable date always go to the bottom, A → Z among themselves.
   const sortBy = document.getElementById('lwsSortBy').value;
   const byName = (a, b) => (a.siteName || '').localeCompare(b.siteName || '', undefined, { sensitivity: 'base' });
-  if (sortBy === 'install-desc' || sortBy === 'install-asc') {
-    const dir = sortBy === 'install-desc' ? -1 : 1;
+  if (/^(install|commence)-(asc|desc)$/.test(sortBy)) {
+    const dir = sortBy.endsWith('-desc') ? -1 : 1;
+    const field = sortBy.startsWith('install') ? 'dateInstallation' : 'launchingDate';
     filtered.sort((a, b) => {
-      const da = pmsParseDate(a.dateInstallation), db = pmsParseDate(b.dateInstallation);
+      const da = pmsParseDate(a[field]), db = pmsParseDate(b[field]);
       if (da && db && da !== db) return da < db ? -dir : dir;
       if (da && !db) return -1;
       if (!da && db) return 1;
@@ -6011,7 +6015,7 @@ function renderLakiwinSites() {
           ${lwsField('Game Offering', s.id + '__gameOffering', 'gameOffering', s.gameOffering)}
           ${lwsField('Address', s.id + '__address', 'address', s.address, true)}
           ${lwsField('Date of Installation', s.id + '__dateInstallation', 'dateInstallation', s.dateInstallation)}
-          ${lwsField('Launching Date', s.id + '__launchingDate', 'launchingDate', s.launchingDate)}
+          ${lwsField('Official Commence Date', s.id + '__launchingDate', 'launchingDate', s.launchingDate)}
           ${lwsField('Contact Person', s.id + '__contactPerson', 'contactPerson', s.contactPerson)}
           ${lwsField('Designation', s.id + '__designation', 'designation', s.designation)}
           ${lwsField('Contact Number', s.id + '__contactNumber', 'contactNumber', s.contactNumber)}
