@@ -980,6 +980,10 @@
   .sr-sig-name { font-size: 13px; font-weight: 600; margin-top: 4px; }
   .sr-sig-title { font-size: 12px; color: var(--muted); }
   button.sr-more { width: 100%; }
+  .sr-trash-banner { margin-bottom: 12px; }
+  .sr-trash-banner[hidden] { display: none; }
+  .sr-trash-head { cursor: default; flex-wrap: wrap; row-gap: 6px; }
+  .sr-trash-head button { padding: 5px 12px; font-size: 12.5px; }
   .sr-paper-check { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; margin-bottom: 14px; background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; font-size: 13px; cursor: pointer; }
   .sr-paper-check input { margin-top: 2px; width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
   .sr-paper-note { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 10px; font-size: 13px; color: var(--muted); }
@@ -1761,7 +1765,9 @@
       </select>
       <button class="secondary" id="srRefreshBtn">🔄 Refresh</button>
       <button class="secondary" id="srExportBtn">⬇ Export to Excel</button>
+      <button class="secondary" id="srTrashBtn">🗑 Trash (0)</button>
     </div>
+    <div class="notice warn sr-trash-banner" id="srTrashBanner" hidden>🗑 Nasa Trash ka. I-click ang <strong>↩ Restore</strong> para ibalik ang report kasama ang lahat ng laman at pirma.</div>
 
     <div class="rm-card sr-form-card" id="srFormCard" hidden>
       <div class="sr-form-head">
@@ -2817,7 +2823,7 @@ const FIELD_MAP = {
   userProfiles: { id:'id', email:'email', role:'role', team:'team' },
   landbasedAccounts: { id:'id', site:'site', accountNo:'account_no', username:'username', mobileNumber:'mobile_number', operator:'operator', remarks:'remarks', team:'team' },
   troubleshootingEntries: { id:'id', title:'title', category:'category', symptom:'symptom', steps:'steps', altSteps:'alt_steps', notes:'notes' },
-  serviceReports: { id:'id', serviceNo:'service_no', serviceId:'service_id', date:'report_date', method:'service_method', siteId:'site_id', siteName:'site_name', tse:'tse_names', responseTime:'response_time', resolveTime:'resolve_time', duration:'duration', status:'status', items:'items', tseSignature:'tse_signature', tsePrinted:'tse_printed', venueSignature:'venue_signature', venuePrinted:'venue_printed', venueEmail:'venue_email', emailedAt:'emailed_at', emailedTo:'emailed_to', signedOnPaper:'signed_on_paper', team:'team', createdBy:'created_by', createdAt:'created_at' },
+  serviceReports: { id:'id', serviceNo:'service_no', serviceId:'service_id', date:'report_date', method:'service_method', siteId:'site_id', siteName:'site_name', tse:'tse_names', responseTime:'response_time', resolveTime:'resolve_time', duration:'duration', status:'status', items:'items', tseSignature:'tse_signature', tsePrinted:'tse_printed', venueSignature:'venue_signature', venuePrinted:'venue_printed', venueEmail:'venue_email', emailedAt:'emailed_at', emailedTo:'emailed_to', signedOnPaper:'signed_on_paper', deletedAt:'deleted_at', deletedBy:'deleted_by', team:'team', createdBy:'created_by', createdAt:'created_at' },
   pmsHistory: { id:'id', siteId:'site_id', siteName:'site_name', dateDone:'date_done', tse:'tse', notes:'notes', source:'source', team:'team', createdAt:'created_at' },
   reimbRoutes: { id:'id', from:'route_from', to:'route_to', km:'km', image:'image_data', imgW:'img_w', imgH:'img_h', createdBy:'created_by' },
   reimbEntries: { id:'id', section:'section', date:'entry_date', from:'route_from', to:'route_to', km:'km', rate:'rate', mode:'mode', withoutTicket:'without_ticket', withTicket:'with_ticket', description:'description', note:'note', amount:'amount', routeId:'route_id', image:'image_data', imgW:'img_w', imgH:'img_h' }
@@ -3013,7 +3019,7 @@ function subscribeRealtime() {
 }
 
 /* ---------- ACTIVITY LOG ---------- */
-const ACTION_LABEL = { add: 'Added', edit: 'Edited', delete: 'Deleted', import: 'Imported' };
+const ACTION_LABEL = { add: 'Added', edit: 'Edited', delete: 'Deleted', import: 'Imported', trash: 'Moved to Trash', restore: 'Restored' };
 
 function formatLogTime(iso) {
   if (!iso) return '—';
@@ -9504,13 +9510,15 @@ const srFullCache = new Map();        // id → full row including signatures
 let srEditingId = null;               // id being edited, '' for a new report, null when the form is closed
 let srShowCount = 60;
 let srPads = null;
+let srTrash = [];                     // reports in the 🗑 Trash (deleted_at set)
+let srShowTrash = false;
 let srMailOpen = new Set();            // reports whose "send a copy" panel is open
 const srPdfCache = new Map();         // id → { blob, name } ready to share / download
 const SR_RECORD_CC_DEFAULT = 'rac.tse@racphil.com';
 
 const SR_BROWN = [88, 48, 13];
 const SR_JSPDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-const SR_LIST_COLS = 'id, service_no, service_id, report_date, service_method, site_id, site_name, tse_names, response_time, resolve_time, duration, status, items, tse_printed, venue_printed, venue_email, emailed_at, emailed_to, signed_on_paper, team, created_by, created_at';
+const SR_LIST_COLS = 'id, service_no, service_id, report_date, service_method, site_id, site_name, tse_names, response_time, resolve_time, duration, status, items, tse_printed, venue_printed, venue_email, emailed_at, emailed_to, signed_on_paper, deleted_at, deleted_by, team, created_by, created_at';
 const SR_EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 
 /* ----- small helpers ----- */
@@ -9558,7 +9566,9 @@ async function srLoad() {
   try {
     const { data, error } = await sb.from('service_reports').select(SR_LIST_COLS).order('service_no', { ascending: false });
     if (error) throw error;
-    serviceReports = (data || []).map(row => { const r = fromDbRow('serviceReports', row); delete r.tseSignature; delete r.venueSignature; return r; });
+    const all = (data || []).map(row => { const r = fromDbRow('serviceReports', row); delete r.tseSignature; delete r.venueSignature; return r; });
+    serviceReports = all.filter(r => !r.deletedAt);
+    srTrash = all.filter(r => r.deletedAt).sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt)));
     srLoadError = '';
   } catch (err) {
     console.error('Failed to load service reports', err);
@@ -9602,6 +9612,10 @@ function renderServiceReports() {
   document.getElementById('statSrPending').textContent = serviceReports.filter(r => (r.status || 'Done') === 'Pending').length;
   srFillDatalists();
 
+  const trashBtn = document.getElementById('srTrashBtn');
+  trashBtn.textContent = srShowTrash ? '← Bumalik sa listahan' : `🗑 Trash (${srTrash.length})`;
+  document.getElementById('srTrashBanner').hidden = !srShowTrash;
+  if (srShowTrash && !srLoadError) { srRenderTrash(list); return; }
   if (srLoadError) {
     list.innerHTML = `<div class="lws-empty">Hindi ma-load ang Service Reports (${escapeHtml(srLoadError)}). Kung bago pa lang ang tab na ito, siguraduhing na-run na ang <strong>add_service_reports.sql</strong> sa Supabase.</div>`;
     return;
@@ -9663,7 +9677,7 @@ function srDetailHtml(r) {
       <button type="button" data-id="${r.id}" data-action="sr-pdf">⬇ PDF</button>
       <button type="button" class="secondary viewer-hide" data-id="${r.id}" data-action="sr-email">✉ Ipadala sa site</button>
       <button type="button" class="secondary viewer-hide" data-id="${r.id}" data-action="sr-edit">✏ Edit</button>
-      <button type="button" class="danger" data-id="${r.id}" data-action="sr-delete">Delete</button>
+      <button type="button" class="danger" data-id="${r.id}" data-action="sr-delete">🗑 Ilipat sa Trash</button>
     </div>`;
 }
 
@@ -10199,17 +10213,85 @@ async function srMarkSent(id) {
   await srRememberSiteEmail(r.siteName, inp.to);
 }
 
+/* ----- 🗑 Trash -----
+   "Delete" only moves a report to the Trash (deleted_at), so a mis-click can
+   be undone with ↩ Restore. Deleting for good happens only in the Trash and
+   needs the Service ID typed in. A trashed report keeps its Service ID, so
+   the number is never handed out again. */
 async function srDelete(id) {
   const r = serviceReports.find(x => x.id === id);
   if (!r) return;
-  if (!confirm(`Burahin ang ${r.serviceId} (${r.siteName})? Hindi na ito maibabalik.\n\nPaalala: hindi na magagamit ulit ang numerong ito.`)) return;
-  const prev = serviceReports.slice();
+  if (!confirm(`Ilipat sa 🗑 Trash ang ${r.serviceId} (${r.siteName})?\n\nPuwede itong i-restore anumang oras mula sa Trash.`)) return;
+  const patch = { deleted_at: new Date().toISOString(), deleted_by: CURRENT_USER_NAME || '' };
   serviceReports = serviceReports.filter(x => x.id !== id);
-  srExpanded.delete(id);
+  Object.assign(r, { deletedAt: patch.deleted_at, deletedBy: patch.deleted_by });
+  srTrash.unshift(r);
+  srExpanded.delete(id); srMailOpen.delete(id);
   renderServiceReports();
-  const result = await dbDelete('serviceReports', id, srLabel(r), r);
-  if (!result.ok) { serviceReports = prev; renderServiceReports(); }
-  else srFullCache.delete(id);
+  const { error } = await sb.from('service_reports').update(patch).eq('id', id);
+  if (error) {
+    alert('Hindi nailipat sa Trash: ' + error.message);
+    srTrash = srTrash.filter(x => x.id !== id);
+    r.deletedAt = null; r.deletedBy = null;
+    serviceReports.push(r);
+    serviceReports.sort((a, b) => (b.serviceNo || 0) - (a.serviceNo || 0));
+    renderServiceReports();
+    return;
+  }
+  logActivity('trash', 'serviceReports', srLabel(r), r);
+}
+
+async function srRestore(id) {
+  const r = srTrash.find(x => x.id === id);
+  if (!r) return;
+  srTrash = srTrash.filter(x => x.id !== id);
+  r.deletedAt = null; r.deletedBy = null;
+  serviceReports.push(r);
+  serviceReports.sort((a, b) => (b.serviceNo || 0) - (a.serviceNo || 0));
+  renderServiceReports();
+  const { error } = await sb.from('service_reports').update({ deleted_at: null, deleted_by: null }).eq('id', id);
+  if (error) {
+    alert('Hindi na-restore: ' + error.message);
+    serviceReports = serviceReports.filter(x => x.id !== id);
+    srTrash.unshift(r);
+    renderServiceReports();
+    return;
+  }
+  logActivity('restore', 'serviceReports', srLabel(r), r);
+  alert(`↩ Naibalik ang ${r.serviceId}.`);
+}
+
+async function srDeleteForever(id) {
+  const r = srTrash.find(x => x.id === id);
+  if (!r) return;
+  const typed = prompt(`Permanenteng burahin ang ${r.serviceId} (${r.siteName})?\nHINDI na ito maibabalik.\n\nPara ituloy, i-type ang Service ID:`);
+  if (typed === null) return;
+  if (typed.trim().toUpperCase() !== String(r.serviceId).toUpperCase()) { alert('Hindi tugma ang Service ID — hindi binura.'); return; }
+  const prev = srTrash.slice();
+  srTrash = srTrash.filter(x => x.id !== id);
+  renderServiceReports();
+  const result = await dbDelete('serviceReports', id, srLabel(r) + ' (permanente)', r);
+  if (!result.ok) { srTrash = prev; renderServiceReports(); }
+  else { srFullCache.delete(id); srPdfCache.delete(id); }
+}
+
+function srRenderTrash(list) {
+  if (!srTrash.length) { list.innerHTML = '<div class="lws-empty">Walang laman ang Trash.</div>'; return; }
+  list.innerHTML = srTrash.map(r => {
+    const when = r.deletedAt ? new Date(r.deletedAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    return `
+      <div class="lws-row sr-trash-row" data-id="${r.id}">
+        <div class="lws-row-header sr-trash-head">
+          <span class="sr-id">${escapeHtml(r.serviceId || '')}</span>
+          <span class="lws-name">${escapeHtml(r.siteName || '—')}</span>
+          <span class="lws-tag">${escapeHtml(pmsShortDate(r.date))}</span>
+          <span class="rm-muted sr-hide-sm">Na-delete ${escapeHtml(when)}${r.deletedBy ? ' ni ' + escapeHtml(r.deletedBy) : ''}</span>
+          <button type="button" class="viewer-hide" data-id="${r.id}" data-action="sr-restore">↩ Restore</button>
+          <button type="button" class="danger viewer-hide" data-id="${r.id}" data-action="sr-delete-forever">Burahin nang tuluyan</button>
+        </div>
+      </div>`;
+  }).join('');
+  applyReadOnlyUI();
 }
 
 /* ----- Excel export (same columns as "SERVICE REPORT MONITORING") ----- */
@@ -10275,6 +10357,7 @@ document.getElementById('srSearchBox').addEventListener('input', () => { srShowC
 document.getElementById('srStatusFilter').addEventListener('change', () => { srShowCount = 60; renderServiceReports(); });
 document.getElementById('srRefreshBtn').addEventListener('click', srReload);
 document.getElementById('srExportBtn').addEventListener('click', srExportExcel);
+document.getElementById('srTrashBtn').addEventListener('click', () => { srShowTrash = !srShowTrash; renderServiceReports(); });
 document.getElementById('srList').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-action]');
   if (btn) {
@@ -10288,6 +10371,8 @@ document.getElementById('srList').addEventListener('click', (e) => {
       case 'sr-mail-close': srMailOpen.delete(id); renderServiceReports(); return;
       case 'sr-edit': srOpenForm(id); return;
       case 'sr-delete': srDelete(id); return;
+      case 'sr-restore': srRestore(id); return;
+      case 'sr-delete-forever': srDeleteForever(id); return;
       case 'sr-more': srShowCount += 60; renderServiceReports(); return;
     }
   }
