@@ -152,7 +152,7 @@
     color: var(--muted);
     margin-bottom: 6px;
   }
-  input[type="text"], input[type="date"], input[type="email"], input[type="time"], textarea, select.field-select {
+  input[type="text"], input[type="date"], input[type="email"], input[type="time"], input[type="password"], textarea, select.field-select {
     width: 100%;
     background: var(--panel2);
     border: 1px solid var(--border);
@@ -980,6 +980,7 @@
   .sr-sig-name { font-size: 13px; font-weight: 600; margin-top: 4px; }
   .sr-sig-title { font-size: 12px; color: var(--muted); }
   button.sr-more { width: 100%; }
+  #taList .field-with-copy .ta-eye { margin-right: 4px; }
   .sr-trash-banner { margin-bottom: 12px; }
   .sr-trash-banner[hidden] { display: none; }
   .sr-trash-head { cursor: default; flex-wrap: wrap; row-gap: 6px; }
@@ -1153,6 +1154,7 @@
       <button class="grouptab-btn" data-grouptab="troubleshooting">Troubleshooting Guide</button>
       <button class="grouptab-btn" data-grouptab="reimbmap">Reimbursement Tools</button>
       <button class="grouptab-btn" data-grouptab="servicereports">Service Reports</button>
+      <button class="grouptab-btn" data-grouptab="testaccounts">Test Account</button>
     </div>
   <!-- SITES TAB -->
   <div class="grouptab-panel active" id="tab-sites">
@@ -1825,6 +1827,45 @@
     <div class="lws-list" id="srList"><div class="lws-empty">Loading…</div></div>
     <datalist id="srSiteOptions"></datalist>
     <datalist id="srTseOptions"></datalist>
+  </div>
+
+  <!-- TEST ACCOUNT TAB -->
+  <div class="grouptab-panel" id="tab-testaccounts">
+    <div class="add-card">
+      <div class="add-grid">
+        <div class="field"><label for="taSite">Site Name</label><input type="text" id="taSite" list="taSiteOptions" placeholder="Pumili o mag-type…"></div>
+        <div class="field"><label for="taOperator">Operator</label><input type="text" id="taOperator" placeholder="e.g. ICBI"></div>
+        <div class="field"><label for="taOutlet">Outlet ID</label><input type="text" id="taOutlet" placeholder="e.g. LW08LBS"></div>
+        <div class="field"><label for="taGame">Game Offering</label><input type="text" id="taGame" placeholder="e.g. EGAMES/EBINGO"></div>
+        <div class="field"><label for="taEcUser">ECASINO account</label><input type="text" id="taEcUser" placeholder="e.g. TESTECLW08LBS01"></div>
+        <div class="field"><label for="taEcPhone">ECASINO phone no.</label><input type="text" id="taEcPhone" inputmode="numeric" placeholder="09XXXXXXXXX"></div>
+        <div class="field"><label for="taEbUser">EBINGO account</label><input type="text" id="taEbUser" placeholder="kung meron"></div>
+        <div class="field"><label for="taEbPhone">EBINGO phone no.</label><input type="text" id="taEbPhone" inputmode="numeric" placeholder="kung meron"></div>
+        <div class="field"><label for="taPassword">Password</label><input type="password" id="taPassword" autocomplete="new-password" placeholder="optional"></div>
+        <div class="field"><label for="taStatus">Status / Remarks</label><input type="text" id="taStatus" placeholder="optional"></div>
+      </div>
+      <button id="taAddBtn">+ Add Test Account</button>
+    </div>
+
+    <div class="summary">
+      <div class="stat"><div class="num" id="statTaTotal">0</div><div class="label">Sites na may test account</div></div>
+      <div class="stat"><div class="num" id="statTaEbingo">0</div><div class="label">May EBINGO account</div></div>
+      <div class="stat pending"><div class="num" id="statTaMissing">0</div><div class="label">Lakiwin sites na wala pa</div></div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="taSearchBox" placeholder="Search site, outlet ID, account, phone…">
+      <select id="taGameFilter" aria-label="Game offering filter">
+        <option value="all">All Game Offerings</option>
+        <option value="ebingo">May EBINGO</option>
+        <option value="egames-only">EGAMES / ECASINO lang</option>
+      </select>
+      <button class="secondary" id="taRefreshBtn">🔄 Refresh</button>
+      <button class="secondary" id="taExportBtn">⬇ Export to Excel</button>
+    </div>
+
+    <div class="lws-list" id="taList"><div class="lws-empty">Loading…</div></div>
+    <datalist id="taSiteOptions"></datalist>
   </div>
   </div>
 
@@ -2538,6 +2579,7 @@ let userProfiles = [];
 let landbasedAccounts = [];
 let troubleshootingEntries = [];
 let pmsHistory = [];
+let testAccounts = [];
 
 /* Set from the Supabase Auth session once login resolves (see the LOGIN
    section near the bottom of this script) — the logged-in user's email. */
@@ -2714,7 +2756,8 @@ const ENTITY_TABLE = {
   reimbRoutes: 'reimbursement_routes',
   reimbEntries: 'reimbursement_entries',
   pmsHistory: 'pms_history',
-  serviceReports: 'service_reports'
+  serviceReports: 'service_reports',
+  testAccounts: 'test_accounts'
 };
 
 const ENTITY_LABEL = {
@@ -2732,7 +2775,8 @@ const ENTITY_LABEL = {
   reimbRoutes: 'Reimbursement - Route Library',
   reimbEntries: 'Reimbursement',
   pmsHistory: 'PMS History',
-  serviceReports: 'Service Reports'
+  serviceReports: 'Service Reports',
+  testAccounts: 'Test Account'
 };
 
 /* Picks a short, human-readable label for a row so the Activity Log
@@ -2751,6 +2795,7 @@ function labelFor(entity, row) {
     case 'userProfiles': return row.email || '';
     case 'landbasedAccounts': return [row.site, row.username].filter(Boolean).join(' - ');
     case 'troubleshootingEntries': return row.title || '';
+    case 'testAccounts': return row.siteName || '';
     case 'serviceReports': return [row.serviceId, row.siteName].filter(Boolean).join(' — ');
     case 'pmsHistory': return [row.siteName, pmsDisplayDate(row.dateDone)].filter(Boolean).join(' — ');
     case 'reimbRoutes': return [row.from, row.to].filter(Boolean).join(' → ');
@@ -2772,6 +2817,7 @@ function entityArray(entity) {
     case 'userProfiles': return userProfiles;
     case 'landbasedAccounts': return landbasedAccounts;
     case 'troubleshootingEntries': return troubleshootingEntries;
+    case 'testAccounts': return testAccounts;
     case 'serviceReports': return serviceReports;
     case 'pmsHistory': return pmsHistory;
     case 'reimbRoutes': return reimbRoutes;
@@ -2823,6 +2869,7 @@ const FIELD_MAP = {
   userProfiles: { id:'id', email:'email', role:'role', team:'team' },
   landbasedAccounts: { id:'id', site:'site', accountNo:'account_no', username:'username', mobileNumber:'mobile_number', operator:'operator', remarks:'remarks', team:'team' },
   troubleshootingEntries: { id:'id', title:'title', category:'category', symptom:'symptom', steps:'steps', altSteps:'alt_steps', notes:'notes' },
+  testAccounts: { id:'id', sortNo:'sort_no', siteName:'site_name', operator:'operator', outletId:'outlet_id', gameOffering:'game_offering', ecasinoUser:'ecasino_user', ecasinoPhone:'ecasino_phone', ebingoUser:'ebingo_user', ebingoPhone:'ebingo_phone', password:'password', status:'status', team:'team', createdAt:'created_at' },
   serviceReports: { id:'id', serviceNo:'service_no', serviceId:'service_id', date:'report_date', method:'service_method', siteId:'site_id', siteName:'site_name', tse:'tse_names', responseTime:'response_time', resolveTime:'resolve_time', duration:'duration', status:'status', items:'items', tseSignature:'tse_signature', tsePrinted:'tse_printed', venueSignature:'venue_signature', venuePrinted:'venue_printed', venueEmail:'venue_email', emailedAt:'emailed_at', emailedTo:'emailed_to', signedOnPaper:'signed_on_paper', deletedAt:'deleted_at', deletedBy:'deleted_by', team:'team', createdBy:'created_by', createdAt:'created_at' },
   pmsHistory: { id:'id', siteId:'site_id', siteName:'site_name', dateDone:'date_done', tse:'tse', notes:'notes', source:'source', team:'team', createdAt:'created_at' },
   reimbRoutes: { id:'id', from:'route_from', to:'route_to', km:'km', image:'image_data', imgW:'img_w', imgH:'img_h', createdBy:'created_by' },
@@ -2954,6 +3001,8 @@ async function loadAllData() {
   // add_pms_history.sql has been run.
   try { pmsHistory = await loadEntity('pmsHistory'); }
   catch (err) { console.error('Failed to load PMS history', err); pmsHistory = []; }
+  try { testAccounts = await loadEntity('testAccounts'); }
+  catch (err) { console.error('Failed to load test accounts', err); testAccounts = []; }
 }
 
 async function loadActivityLog() {
@@ -2976,11 +3025,12 @@ function renderAll() {
   renderLandbasedAccounts();
   renderTroubleshootingGuide();
   renderReimbMap();
+  renderTestAccounts();
 }
 
 function subscribeRealtime() {
-  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', phone_duties:'phoneDuties', user_profiles:'userProfiles', landbased_accounts:'landbasedAccounts', troubleshooting_entries:'troubleshootingEntries', pms_history:'pmsHistory' };
-  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, phoneDuties: renderPhoneDuties, userProfiles: renderAdminTab, landbasedAccounts: renderLandbasedAccounts, troubleshootingEntries: renderTroubleshootingGuide, pmsHistory: renderSites };
+  const entityByTable = { tasks:'tasks', sites:'sites', inventory:'inventory', monitors:'monitors', system_units:'systemUnits', lakiwin_sites:'lakiwinSites', anydesk_ids:'anydeskIds', phone_duties:'phoneDuties', user_profiles:'userProfiles', landbased_accounts:'landbasedAccounts', troubleshooting_entries:'troubleshootingEntries', pms_history:'pmsHistory', test_accounts:'testAccounts' };
+  const rendererByEntity = { tasks: renderTasks, sites: renderSites, inventory: renderInventory, monitors: renderMonitors, systemUnits: renderSystemUnits, lakiwinSites: renderLakiwinSites, anydeskIds: renderAnydeskIds, phoneDuties: renderPhoneDuties, userProfiles: renderAdminTab, landbasedAccounts: renderLandbasedAccounts, troubleshootingEntries: renderTroubleshootingGuide, pmsHistory: renderSites, testAccounts: renderTestAccounts };
   sb.channel('tse-tracker-changes')
     .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
       if (payload.table === 'activity_log') {
@@ -3008,6 +3058,7 @@ function subscribeRealtime() {
         else if (entity === 'landbasedAccounts') landbasedAccounts = rows;
         else if (entity === 'troubleshootingEntries') troubleshootingEntries = rows;
         else if (entity === 'pmsHistory') pmsHistory = rows;
+        else if (entity === 'testAccounts') testAccounts = rows;
         rendererByEntity[entity]();
       } catch (err) {
         console.error('realtime refresh failed', entity, err);
@@ -10389,6 +10440,199 @@ document.getElementById('srList').addEventListener('keydown', (e) => {
   if (!header || e.target !== header) return;
   e.preventDefault();
   header.click();
+});
+
+
+/* ================= TEST ACCOUNT (TSE Tools → Test Account) =================
+   One row per LakiWin site with its ECASINO / EBINGO test accounts
+   (public.test_accounts, see add_test_accounts.sql). Passwords differ per
+   site, are optional, shown masked (👁 to reveal, 📋 to copy) and never put
+   in the Activity Log (the log only gets the site name). */
+let taExpanded = new Set();
+let taShowPw = new Set();
+
+function taSorted() {
+  return testAccounts.slice().sort((a, b) =>
+    ((a.sortNo == null ? 1e9 : a.sortNo) - (b.sortNo == null ? 1e9 : b.sortNo)) ||
+    String(a.siteName || '').localeCompare(String(b.siteName || '')));
+}
+function taHasEbingo(t) { return !!String(t.ebingoUser || '').trim(); }
+
+function taPasswordField(t) {
+  const pwId = t.id + '__password';
+  const shown = taShowPw.has(t.id);
+  return `
+    <div class="field">
+      <label for="${pwId}">Password</label>
+      <div class="field-with-copy">
+        <input type="${shown ? 'text' : 'password'}" id="${pwId}" class="edit-field" data-id="${t.id}" data-field="password" value="${rmAttr(t.password || '')}" placeholder="—" autocomplete="new-password">
+        <button type="button" class="field-copy-btn ta-eye" data-action="ta-toggle-pw" data-id="${t.id}" title="${shown ? 'Itago' : 'Ipakita'}">${shown ? '🙈' : '👁'}</button>
+        <button type="button" class="field-copy-btn" data-copy-target="${pwId}" title="Copy">📋</button>
+      </div>
+    </div>`;
+}
+
+function renderTestAccounts() {
+  const list = document.getElementById('taList');
+  if (!list) return;
+  const all = taSorted();
+  const keyOf = (n) => rmPlaceKey(n);
+  const have = new Set(all.map(t => keyOf(t.siteName)));
+  const lakiwin = (typeof lakiwinSites !== 'undefined' ? lakiwinSites : []);
+  document.getElementById('statTaTotal').textContent = all.length;
+  document.getElementById('statTaEbingo').textContent = all.filter(taHasEbingo).length;
+  document.getElementById('statTaMissing').textContent = lakiwin.filter(s => (s.status || 'Active') !== 'Disabled' && !have.has(keyOf(s.siteName))).length;
+
+  const opts = new Map();
+  lakiwin.forEach(s => { const k = keyOf(s.siteName); if (k && !opts.has(k)) opts.set(k, s.siteName); });
+  document.getElementById('taSiteOptions').innerHTML = Array.from(opts.values()).sort((a, b) => a.localeCompare(b)).map(n => `<option value="${rmAttr(n)}">`).join('');
+
+  const term = document.getElementById('taSearchBox').value.trim().toLowerCase();
+  const game = document.getElementById('taGameFilter').value;
+  const rows = all.filter(t => {
+    if (game === 'ebingo' && !taHasEbingo(t)) return false;
+    if (game === 'egames-only' && taHasEbingo(t)) return false;
+    if (!term) return true;
+    return [t.siteName, t.operator, t.outletId, t.gameOffering, t.ecasinoUser, t.ecasinoPhone, t.ebingoUser, t.ebingoPhone, t.status]
+      .join(' ').toLowerCase().includes(term);
+  });
+  if (!rows.length) {
+    list.innerHTML = `<div class="lws-empty">${all.length ? 'Walang tugmang test account.' : 'Wala pang test account. Kung bago pa lang ang tab na ito, siguraduhing na-run na ang <strong>add_test_accounts.sql</strong> sa Supabase.'}</div>`;
+    return;
+  }
+  list.innerHTML = rows.map(t => {
+    const isOpen = taExpanded.has(t.id);
+    return `
+      <div class="lws-row${isOpen ? ' expanded' : ''}" data-id="${t.id}">
+        <div class="lws-row-header" data-id="${t.id}" data-action="toggle-row" role="button" tabindex="0" aria-expanded="${isOpen}">
+          <span class="lws-name">${escapeHtml(t.siteName || '—')}</span>
+          ${t.outletId ? `<span class="lws-tag sr-hide-sm">${escapeHtml(t.outletId)}</span>` : ''}
+          ${t.gameOffering ? `<span class="lws-tag">${escapeHtml(t.gameOffering)}</span>` : ''}
+          <span class="lws-chevron">▾</span>
+        </div>
+        <div class="lws-detail" ${isOpen ? '' : 'hidden'}>
+          <div class="lws-detail-grid">
+            ${lwsField('Site Name', t.id + '__siteName', 'siteName', t.siteName)}
+            ${lwsField('Operator', t.id + '__operator', 'operator', t.operator)}
+            ${lwsField('Outlet ID', t.id + '__outletId', 'outletId', t.outletId, false, true)}
+            ${lwsField('Game Offering', t.id + '__gameOffering', 'gameOffering', t.gameOffering)}
+            ${lwsField('ECASINO account', t.id + '__ecasinoUser', 'ecasinoUser', t.ecasinoUser, false, true)}
+            ${lwsField('ECASINO phone no.', t.id + '__ecasinoPhone', 'ecasinoPhone', t.ecasinoPhone, false, true)}
+            ${lwsField('EBINGO account', t.id + '__ebingoUser', 'ebingoUser', t.ebingoUser, false, true)}
+            ${lwsField('EBINGO phone no.', t.id + '__ebingoPhone', 'ebingoPhone', t.ebingoPhone, false, true)}
+            ${taPasswordField(t)}
+            ${lwsField('Status / Remarks', t.id + '__status', 'status', t.status)}
+          </div>
+          <div class="lws-detail-actions">
+            <span></span>
+            <button class="danger" data-id="${t.id}" data-action="delete-test-account">Delete</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  applyReadOnlyUI();
+}
+
+async function addTestAccount() {
+  const v = (id) => document.getElementById(id).value.trim();
+  const siteName = v('taSite');
+  if (!siteName) { alert('Ilagay ang Site Name.'); document.getElementById('taSite').focus(); return; }
+  if (!v('taEcUser') && !v('taEbUser')) { alert('Ilagay ang ECASINO o EBINGO account.'); return; }
+  const dup = testAccounts.find(t => rmPlaceKey(t.siteName) === rmPlaceKey(siteName));
+  if (dup && !confirm(`May test account na ang "${dup.siteName}". Magdagdag pa rin ng isa pa?`)) return;
+  const maxNo = testAccounts.reduce((m, t) => Math.max(m, Number(t.sortNo) || 0), 0);
+  const row = {
+    id: 'ta_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    sortNo: maxNo + 1, siteName, operator: v('taOperator'), outletId: v('taOutlet'), gameOffering: v('taGame').toUpperCase(),
+    ecasinoUser: v('taEcUser'), ecasinoPhone: v('taEcPhone'), ebingoUser: v('taEbUser'), ebingoPhone: v('taEbPhone'),
+    password: document.getElementById('taPassword').value, status: v('taStatus'),
+    team: (CURRENT_USER_TEAM && CURRENT_USER_TEAM !== 'ADMIN') ? CURRENT_USER_TEAM : 'TSE'
+  };
+  testAccounts.push(row);
+  renderTestAccounts();
+  const result = await dbInsert('testAccounts', row);
+  if (!result.ok) { testAccounts = testAccounts.filter(t => t.id !== row.id); renderTestAccounts(); return; }
+  ['taSite', 'taOperator', 'taOutlet', 'taGame', 'taEcUser', 'taEcPhone', 'taEbUser', 'taEbPhone', 'taPassword', 'taStatus']
+    .forEach(id => { document.getElementById(id).value = ''; });
+}
+
+async function updateTestAccountField(id, field, value) {
+  const t = testAccounts.find(x => x.id === id);
+  if (!t) return;
+  const prev = t[field];
+  t[field] = field === 'gameOffering' ? String(value || '').trim().toUpperCase() : (field === 'password' ? value : String(value || '').trim());
+  const result = await dbUpdate('testAccounts', id, { [field]: t[field] });
+  if (!result.ok) { t[field] = prev; renderTestAccounts(); }
+  else if (field === 'siteName' || field === 'gameOffering' || field === 'outletId') renderTestAccounts();
+}
+
+async function deleteTestAccount(id) {
+  const t = testAccounts.find(x => x.id === id);
+  if (!t) return;
+  if (!confirm(`Burahin ang test account ng "${t.siteName}"?`)) return;
+  const prev = testAccounts.slice();
+  testAccounts = testAccounts.filter(x => x.id !== id);
+  taExpanded.delete(id);
+  renderTestAccounts();
+  const result = await dbDelete('testAccounts', id, t.siteName);
+  if (!result.ok) { testAccounts = prev; renderTestAccounts(); }
+}
+
+/* Export: same columns as the team's Excel, without passwords. */
+function exportTestAccounts() {
+  const rows = taSorted().map((t, i) => ({
+    No: i + 1, 'SITE NAME': t.siteName || '', OPERATOR: t.operator || '', 'OUTLET ID': t.outletId || '',
+    'GAME OFFERING': t.gameOffering || '', ECASINO: t.ecasinoUser || '', 'ECASINO PHONE NO.': t.ecasinoPhone || '',
+    EBINGO: t.ebingoUser || '', 'EBINGO PHONE NO.': t.ebingoPhone || '', Status: t.status || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 26 }, { wch: 11 }, { wch: 15 }, { wch: 19 }, { wch: 15 }, { wch: 19 }, { wch: 15 }, { wch: 16 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'TEST ACCOUNT');
+  XLSX.writeFile(wb, `Test_Accounts_${rmTodayIso()}.xlsx`);
+}
+
+document.getElementById('taAddBtn').addEventListener('click', addTestAccount);
+document.getElementById('taSite').addEventListener('change', (e) => {
+  const s = srLakiwinSite(e.target.value);
+  if (!s) return;
+  const fill = (id, val) => { const el = document.getElementById(id); if (el && !el.value.trim() && val) el.value = val; };
+  fill('taOperator', s.operator); fill('taOutlet', s.outletId); fill('taGame', s.gameOffering);
+});
+document.getElementById('taSearchBox').addEventListener('input', renderTestAccounts);
+document.getElementById('taGameFilter').addEventListener('change', renderTestAccounts);
+document.getElementById('taRefreshBtn').addEventListener('click', async () => {
+  try { testAccounts = await loadEntity('testAccounts'); } catch (err) { console.error(err); }
+  renderTestAccounts();
+});
+document.getElementById('taExportBtn').addEventListener('click', exportTestAccounts);
+document.getElementById('taList').addEventListener('click', (e) => {
+  const eye = e.target.closest('button[data-action="ta-toggle-pw"]');
+  if (eye) {
+    const id = eye.dataset.id;
+    if (taShowPw.has(id)) taShowPw.delete(id); else taShowPw.add(id);
+    const input = document.getElementById(id + '__password');
+    if (input) input.type = taShowPw.has(id) ? 'text' : 'password';
+    eye.textContent = taShowPw.has(id) ? '🙈' : '👁';
+    return;
+  }
+  const del = e.target.closest('button[data-action="delete-test-account"]');
+  if (del) { deleteTestAccount(del.dataset.id); return; }
+  if (e.target.closest('.field-copy-btn')) return;
+  const header = e.target.closest('[data-action="toggle-row"]');
+  if (header) toggleAccordionRow(header, taExpanded);
+});
+document.getElementById('taList').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const header = e.target.closest('[data-action="toggle-row"]');
+  if (!header || e.target !== header) return;
+  e.preventDefault();
+  toggleAccordionRow(header, taExpanded);
+});
+document.getElementById('taList').addEventListener('change', (e) => {
+  const el = e.target;
+  if (!el.classList.contains('edit-field')) return;
+  updateTestAccountField(el.dataset.id, el.dataset.field, el.value);
 });
 
 /* Supabase persists the session in localStorage on its own, so a reload
