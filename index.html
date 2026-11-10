@@ -1682,6 +1682,8 @@
       <div class="toolbar rm-toolbar">
         <button type="button" id="rmXlsxBtn">⬇ Excel (Reimbursement Form)</button>
         <button type="button" id="rmDocxBtn">⬇ Word (Maps)</button>
+        <button type="button" id="rmFormPdfBtn">⬇ PDF (Reimbursement Form)</button>
+        <button type="button" id="rmMapsPdfBtn">⬇ PDF (Maps)</button>
         <label class="rm-check"><input type="checkbox" id="rmOnePerPage2" checked> Isang petsa bawat page</label>
         <button type="button" class="secondary" id="rmEntriesRefreshBtn">🔄 Refresh</button>
       </div>
@@ -8111,6 +8113,14 @@ async function rmBuildXlsx(templateB64, info, data) {
   let comTotal = 0;
   const comRows = data.commute.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const comCount = Math.max(2, comRows.length);
+  /* Same day = one DATE cell merged down that day's rows (like the
+     gasoline section). */
+  const comPos = comRows.map((c, i) => {
+    const same = (j) => j >= 0 && j < comRows.length && (comRows[j].date || '') === (c.date || '');
+    const first = !same(i - 1), lastOfDay = !same(i + 1);
+    return { first, lastOfDay };
+  });
+  let comGroupStart = null;
   for (let i = 0; i < comCount; i++) {
     const c = comRows[i];
     const last = i === comCount - 1;
@@ -8118,9 +8128,19 @@ async function rmBuildXlsx(templateB64, info, data) {
     const wo = c ? rmNum(c.withoutTicket) : 0, wt = c ? rmNum(c.withTicket) : 0;
     const amt = rmRound2(wo + wt);
     comTotal += amt;
+    let dateCell;
+    if (c) {
+      const pos = comPos[i];
+      if (pos.first) comGroupStart = r;
+      const bStyle = pos.first ? 63 : (pos.lastOfDay ? 64 : 65);
+      dateCell = rmCell('B' + r, bStyle, pos.first ? { n: rmDateSerial(c.date) } : {});
+      if (pos.lastOfDay && comGroupStart !== null && r > comGroupStart) merges.push(`B${comGroupStart}:B${r}`);
+    } else {
+      dateCell = rmCell('B' + r, st[1]);
+    }
     out.push(rmRow(r, 15, [
       rmCell('A' + r, st[0]),
-      rmCell('B' + r, st[1], c ? { n: rmDateSerial(c.date) } : {}),
+      dateCell,
       rmCell('C' + r, st[2], c ? { str: c.from || '' } : {}),
       rmCell('D' + r, st[3], c ? { str: c.to || '' } : {}),
       rmCell('E' + r, st[4], c ? { str: c.mode || '' } : {}),
@@ -9397,26 +9417,36 @@ function rmCheckGenerateInputs() {
   return true;
 }
 
-async function rmGenerateXlsx() {
-  if (!rmCheckGenerateInputs()) return;
+/* What goes into the reimbursement form (Excel and PDF use the same data). */
+function rmFormData() {
   const bits = rmFileBits();
-  if (!bits.name) { alert('Ilagay ang Employee Name.'); document.getElementById('rmEmpName').focus(); return; }
-  const btn = document.getElementById('rmXlsxBtn');
-  btn.disabled = true;
-  try {
-    const rows = rmEntriesInRange();
-    const pick = s => rows.filter(e => e.section === s);
-    const blob = await rmBuildXlsx(RM_XLSX_TEMPLATE_B64, {
+  const rows = rmEntriesInRange();
+  const pick = s => rows.filter(e => e.section === s);
+  return {
+    bits,
+    info: {
       employee: bits.name,
       department: document.getElementById('rmDept').value.trim(),
       covered: rmCoveredText(document.getElementById('rmCovFrom').value, document.getElementById('rmCovTo').value),
       sheetName: [bits.mon, bits.day].filter(Boolean).join(' ') || 'Reimbursement'
-    }, {
+    },
+    data: {
       gas: pick('gas').map(e => ({ date: e.date, from: rmCanonicalPlace(e.from), to: rmCanonicalPlace(e.to), km: e.km, rate: e.rate })),
       commute: pick('commute').map(e => ({ date: e.date, from: rmCanonicalPlace(e.from), to: rmCanonicalPlace(e.to), mode: e.mode, withoutTicket: e.withoutTicket, withTicket: e.withTicket, note: e.note })),
       supplies: pick('supplies').map(e => ({ date: e.date, description: e.description, note: e.note, amount: e.amount })),
       others: pick('others').map(e => ({ date: e.date, description: e.description, note: e.note, amount: e.amount }))
-    });
+    }
+  };
+}
+
+async function rmGenerateXlsx() {
+  if (!rmCheckGenerateInputs()) return;
+  const { bits, info, data } = rmFormData();
+  if (!bits.name) { alert('Ilagay ang Employee Name.'); document.getElementById('rmEmpName').focus(); return; }
+  const btn = document.getElementById('rmXlsxBtn');
+  btn.disabled = true;
+  try {
+    const blob = await rmBuildXlsx(RM_XLSX_TEMPLATE_B64, info, data);
     rmDownload(blob, ['Reimbursement', bits.first, bits.mon, bits.day].filter(Boolean).join('_') + '.xlsx');
   } catch (err) {
     console.error('rmGenerateXlsx failed', err);
@@ -9426,50 +9456,304 @@ async function rmGenerateXlsx() {
   }
 }
 
-async function rmGenerateEntriesDocx() {
-  if (!rmCheckGenerateInputs()) return;
-  const gas = rmEntriesInRange().filter(e => e.section === 'gas')
+/* Gasoline trips in the covered dates → one group per date with each trip's
+   screenshot (Word-ready PNG/JPEG). Trips that can't be included are listed
+   in `skipped` with the reason. Used by both Word and PDF maps. */
+async function rmMapGroups(gas) {
+  await rmEnsureEntryImages(gas.filter(e => e.imgW).map(e => e.id));
+  await rmEnsureImages(gas.map(e => { const r = rmEntryRoute(e); return r && r.imgW ? r.id : null; }).filter(Boolean));
+  const groups = [];
+  const skipped = [];
+  const ready = new Map();
+  for (const e of gas) {
+    let shot = null;
+    try { shot = await rmEntryShot(e); } catch (err) { console.error('rmEntryShot failed', e.id, err); }
+    if (!shot) { skipped.push({ e, why: rmEntryHasShot(e) ? 'hindi ma-load ang screenshot' : 'walang screenshot' }); continue; }
+    if (!ready.has(shot.key)) ready.set(shot.key, await rmWordReadyImage(shot.dataUrl));
+    const dataUrl = ready.get(shot.key);
+    if (!dataUrl) { skipped.push({ e, why: 'hindi mabasa ang larawan' }); continue; }
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== e.date) { g = { key: e.date, label: rmIsoLabel(e.date), items: [] }; groups.push(g); }
+    g.items.push({ imageKey: shot.key, dataUrl, w: shot.w, h: shot.h });
+  }
+  return { groups, skipped };
+}
+function rmGasForMaps() {
+  return rmEntriesInRange().filter(e => e.section === 'gas')
     .sort((a, b) => (a.date || '').localeCompare(b.date || '') || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+}
+function rmReportSkipped(kind, used, total, skipped) {
+  if (!skipped.length) return;
+  const lines = skipped.slice(0, 12).map(s => `• ${rmIsoLabel(s.e.date)} — ${rmEntryTitle(s.e)} (${s.why})`);
+  if (skipped.length > 12) lines.push(`• …at ${skipped.length - 12} pa`);
+  alert(`Na-download ang ${kind}: ${used} sa ${total} biyahe ang naisama.\n\nHINDI naisama (${skipped.length}):\n${lines.join('\n')}\n\nBuksan ang mga biyaheng ito at mag-paste ulit ng screenshot, tapos i-download ulit.`);
+}
+async function rmGenerateMaps(kind) {
+  if (!rmCheckGenerateInputs()) return;
+  const gas = rmGasForMaps();
   if (!gas.length) { alert('Walang gasoline na biyahe sa napiling Covered Date.'); return; }
   const missing = gas.filter(e => !rmEntryHasShot(e)).length;
-  if (missing && !confirm(`May ${missing} biyahe na walang screenshot — hindi sila isasama sa Word file. Ituloy pa rin?`)) return;
-  const btn = document.getElementById('rmDocxBtn');
+  if (missing && !confirm(`May ${missing} biyahe na walang screenshot — hindi sila isasama. Ituloy pa rin?`)) return;
+  const btn = document.getElementById(kind === 'pdf' ? 'rmMapsPdfBtn' : 'rmDocxBtn');
   btn.disabled = true;
   const oldText = btn.textContent;
   btn.textContent = '⏳ Ginagawa…';
   try {
-    await rmEnsureEntryImages(gas.filter(e => e.imgW).map(e => e.id));
-    await rmEnsureImages(gas.map(e => { const r = rmEntryRoute(e); return r && r.imgW ? r.id : null; }).filter(Boolean));
-    const groups = [];
-    const skipped = [];          // trips that could not go into the Word file, with the reason
-    const wordImages = new Map(); // imageKey → Word-ready data URL (png/jpeg)
-    for (const e of gas) {
-      let shot = null;
-      try { shot = await rmEntryShot(e); } catch (err) { console.error('rmEntryShot failed', e.id, err); }
-      if (!shot) {
-        skipped.push({ e, why: rmEntryHasShot(e) ? 'hindi ma-load ang screenshot' : 'walang screenshot' });
-        continue;
-      }
-      if (!wordImages.has(shot.key)) wordImages.set(shot.key, await rmWordReadyImage(shot.dataUrl));
-      const dataUrl = wordImages.get(shot.key);
-      if (!dataUrl) { skipped.push({ e, why: 'hindi mabasa ang larawan' }); continue; }
-      let g = groups[groups.length - 1];
-      if (!g || g.key !== e.date) { g = { key: e.date, label: rmIsoLabel(e.date), items: [] }; groups.push(g); }
-      g.items.push({ imageKey: shot.key, dataUrl, w: shot.w, h: shot.h });
-    }
+    const { groups, skipped } = await rmMapGroups(gas);
     if (!groups.length) { alert('Walang biyahe na may screenshot.'); return; }
-    const blob = await rmBuildDocx(groups, { onePerPage: document.getElementById('rmOnePerPage2').checked });
+    const onePerPage = document.getElementById('rmOnePerPage2').checked;
     const bits = rmFileBits();
-    rmDownload(blob, ['map', bits.mon, bits.first].filter(Boolean).join('_') + '.docx');
-    const used = groups.reduce((n, g) => n + g.items.length, 0);
-    if (skipped.length) {
-      const lines = skipped.slice(0, 12).map(s => `• ${rmIsoLabel(s.e.date)} — ${rmEntryTitle(s.e)} (${s.why})`);
-      if (skipped.length > 12) lines.push(`• …at ${skipped.length - 12} pa`);
-      alert(`Na-download ang Word file: ${used} sa ${gas.length} biyahe ang naisama.\n\nHINDI naisama (${skipped.length}):\n${lines.join('\n')}\n\nBuksan ang mga biyaheng ito at mag-paste ulit ng screenshot, tapos i-download ulit ang Word.`);
-    }
+    const base = ['map', bits.mon, bits.first].filter(Boolean).join('_');
+    if (kind === 'pdf') rmDownload(await rmBuildMapsPdf(groups, { onePerPage }), base + '.pdf');
+    else rmDownload(await rmBuildDocx(groups, { onePerPage }), base + '.docx');
+    rmReportSkipped(kind === 'pdf' ? 'PDF' : 'Word file', groups.reduce((n, g) => n + g.items.length, 0), gas.length, skipped);
   } catch (err) {
-    console.error('rmGenerateEntriesDocx failed', err);
-    alert('Hindi nagawa ang Word file: ' + (err && err.message ? err.message : 'unknown error'));
+    console.error('rmGenerateMaps failed', err);
+    alert('Hindi nagawa ang maps: ' + (err && err.message ? err.message : 'unknown error'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
+}
+async function rmGenerateEntriesDocx() { return rmGenerateMaps('docx'); }
+
+/* ----- PDF: maps (same layout as the Word file) -----
+   Letter, 0.75" margins; each date on its own page with its date box and
+   all its screenshots sized to fit that page, each with a thin black border. */
+async function rmBuildMapsPdf(groups, opts) {
+  const JsPDF = await srLoadJsPdf();
+  const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const EMU = 36000;                     // EMU per mm
+  const M = 19.05, PAGE_W = 215.9, USABLE_W = PAGE_W - 2 * M;   // 7"
+  const onePerPage = !opts || opts.onePerPage !== false;
+  const added = new Set();
+  let y = M;
+  groups.forEach((g, gi) => {
+    const items = g.items;
+    const layout = rmDateLayout(items);
+    const w = layout.width / EMU;
+    const cellW = USABLE_W / layout.cols;
+    const rows = [];
+    for (let i = 0; i < items.length; i += layout.cols) rows.push(items.slice(i, i + layout.cols));
+    const rowHeights = rows.map(r => Math.max(...r.map(it => w * rmRatio(it))));
+    const blockH = 7 + 4.9 + rowHeights.reduce((a, h) => a + h + 5.08, 0);
+    if (gi > 0) {
+      if (onePerPage || y + blockH > 279.4 - M) { doc.addPage('letter', 'portrait'); y = M; }
+      else y += 6;
+    }
+    // Date label box
+    const boxW = 33.5, boxH = 7;
+    doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.25);
+    doc.rect((PAGE_W - boxW) / 2, y, boxW, boxH);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+    doc.text(srPdfText(g.label), PAGE_W / 2, y + 4.8, { align: 'center' });
+    y += boxH + 4.9;
+    rows.forEach((r, ri) => {
+      r.forEach((it, ci) => {
+        const h = w * rmRatio(it);
+        const x = M + ci * cellW + (cellW - w) / 2;
+        const fmt = /^data:image\/png/i.test(it.dataUrl) ? 'PNG' : 'JPEG';
+        const alias = 'img_' + String(it.imageKey).replace(/[^\w]/g, '_');
+        doc.addImage(it.dataUrl, fmt, x, y, w, h, alias, 'FAST');
+        added.add(alias);
+        doc.setLineWidth(0.35); doc.rect(x, y, w, h);
+      });
+      y += rowHeights[ri] + 5.08;
+    });
+  });
+  return doc.output('blob');
+}
+
+/* ----- PDF: reimbursement form (looks like the team's Excel form) -----
+   Drawn from the same data as the Excel file, on A4 with the template's
+   column widths, row heights, fills and the RAC logo. Long forms continue on
+   the next page. */
+let rmFormLogoCache = null;
+async function rmFormLogo() {
+  if (rmFormLogoCache) return rmFormLogoCache;
+  const zip = await JSZip.loadAsync(RM_XLSX_TEMPLATE_B64, { base64: true });
+  const f = zip.file('xl/media/image1.png');
+  rmFormLogoCache = f ? 'data:image/png;base64,' + await f.async('base64') : '';
+  return rmFormLogoCache;
+}
+async function rmBuildFormPdf(info, data) {
+  const JsPDF = await srLoadJsPdf();
+  const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const PX = [28, 99, 180, 118, 58, 58, 58, 80, 114];          // template column widths (px)
+  const TOTAL_PX = PX.reduce((a, b) => a + b, 0);
+  const MT = 6, BOTTOM = 297 - 6, FULL_W = 210 - 12;
+  // Like Excel's "fit to page": work out the form's height and shrink the
+  // whole form (down to 62%) so it fits on one A4 page when it can.
+  const gasDates = new Set(data.gas.map(g => g.date || '')).size;
+  const formPt = 1.8 + 67.8 + 18 * 3 + 15 + 30 + (data.gas.length + Math.max(gasDates, 2) - (gasDates ? 0 : 2)) * 15 + (gasDates ? 0 : 30) + 15 +
+    15 + 21 + Math.max(2, data.commute.length) * 15 + 15 +
+    15 + 15 + Math.max(1, data.supplies.length) * 15 + 15 +
+    15 + 15 + Math.max(1, data.others.length) * 22.8 + 15 + 6 + 19.2 + 6 + 3 * 22.5;
+  const fullK = FULL_W / TOTAL_PX;
+  const fit = Math.max(0.62, Math.min(1, (BOTTOM - MT) / ((formPt * 1.03 + 30) * 4 / 3 * fullK)));
+  const k = fullK * fit;                                        // mm per Excel px
+  const W = TOTAL_PX * k, ML = (210 - W) / 2;
+  const X = [ML]; PX.forEach(p => X.push(X[X.length - 1] + p * k));
+  const ptH = pt => pt * 4 / 3 * k;                             // Excel row height (pt) → mm
+  const fs = pt => pt * 0.8 * fit;                              // Excel (Calibri) size → PDF (Helvetica) size
+  const COL = { A: 0, B: 1, C: 2, D: 3, E: 4, F: 5, G: 6, H: 7, I: 8 };
+  const YELLOW = [255, 255, 0], GRAY = [217, 217, 217], BLUE = [222, 235, 247];
+  let y = MT;
+
+  const money = n => { const v = rmRound2(Number(n) || 0); return v ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'; };
+  const longDate = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${RM_MONTHS_FULL[+m[2] - 1]} ${m[3]}, ${m[1]}` : ''; };
+  const num = n => (n === null || n === undefined || n === '' || isNaN(Number(n))) ? '' : String(rmRound2(Number(n)));
+
+  /* One cell (or merged range from c1 to c2) at the current y. */
+  function cell(c1, c2, h, text, o) {
+    o = o || {};
+    const x1 = X[COL[c1]], x2 = X[COL[c2] + 1];
+    if (o.fill) { doc.setFillColor(...o.fill); doc.rect(x1, y, x2 - x1, h, 'F'); }
+    if (o.border !== false) { doc.setDrawColor(0, 0, 0); doc.setLineWidth(o.thick ? 0.45 : 0.2); doc.rect(x1, y, x2 - x1, h); }
+    if (text === undefined || text === null || text === '') return;
+    doc.setFont('helvetica', o.bold && o.italic ? 'bolditalic' : o.bold ? 'bold' : o.italic ? 'italic' : 'normal');
+    doc.setFontSize(fs(o.size || 10));
+    doc.setTextColor(0, 0, 0);
+    const pad = 1.1;
+    const maxW = x2 - x1 - pad * 2;
+    let lines = o.wrap ? doc.splitTextToSize(srPdfText(text), maxW) : [srPdfText(text)];
+    const lh = fs(o.size || 10) * 0.3528 * 1.12;
+    if (!o.wrap) {
+      while (lines[0].length > 1 && doc.getTextWidth(lines[0]) > maxW) lines[0] = lines[0].slice(0, -1);
+    }
+    const blockH = lines.length * lh;
+    let ty = o.valign === 'top' ? y + pad + lh * 0.8 : y + (h - blockH) / 2 + lh * 0.8;
+    const tx = o.align === 'left' ? x1 + pad : o.align === 'right' ? x2 - pad : (x1 + x2) / 2;
+    lines.forEach(line => { doc.text(line, tx, ty, { align: o.align === 'left' ? 'left' : o.align === 'right' ? 'right' : 'center' }); ty += lh; });
+  }
+  function need(h) { if (y + h > BOTTOM) { doc.addPage('a4', 'portrait'); y = MT; } }
+  function row(h, cells) { need(h); cells.forEach(c => cell(c[0], c[1], h, c[2], c[3])); y += h; }
+  const section = (title) => row(ptH(15), [['A', 'I', title, { bold: true, fill: GRAY }]]);
+  const subtotal = (total) => row(ptH(15), [['A', 'D', '', { border: false }], ['E', 'H', 'SUBTOTAL:', { bold: true, align: 'right' }], ['I', 'I', money(total), { bold: true, align: 'right' }]]);
+
+  // Header
+  y += ptH(1.8);
+  const logo = await rmFormLogo();
+  const logoH = ptH(67.8);
+  doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.45); doc.rect(X[0], y, X[9] - X[0], logoH);
+  if (logo) doc.addImage(logo, 'PNG', X[1] + 11.2 * k, y + 3.2 * k, 711 * k, 86.4 * k, 'rm_form_logo', 'FAST');
+  y += logoH;
+  row(ptH(18), [['A', 'I', 'REIMBURSEMENT FORM', { bold: true, size: 13, fill: BLUE, thick: true }]]);
+  const grand = rmRound2(
+    data.gas.reduce((s, g) => s + rmRound2((Number(g.km) || 0) * (Number(g.rate) || 16)), 0) +
+    data.commute.reduce((s, c) => s + (Number(c.withoutTicket) || 0) + (Number(c.withTicket) || 0), 0) +
+    data.supplies.reduce((s, e) => s + (Number(e.amount) || 0), 0) +
+    data.others.reduce((s, e) => s + (Number(e.amount) || 0), 0));
+  row(ptH(18), [['A', 'C', 'EMPLOYEE NAME:', { bold: true, align: 'left' }], ['D', 'F', info.employee || '', { bold: true, italic: true }],
+    ['G', 'H', 'TOTAL AMOUNT:', { bold: true, align: 'left' }], ['I', 'I', money(grand), { bold: true, italic: true, align: 'right', fill: YELLOW }]]);
+  row(ptH(18), [['A', 'C', 'COVERED DATE:', { bold: true, align: 'left' }], ['D', 'F', info.covered || '', { bold: true }],
+    ['G', 'H', 'DEPARTMENT:', { bold: true, align: 'left' }], ['I', 'I', info.department || '', { bold: true, align: 'left' }]]);
+
+  // Motorcycle gasoline
+  section('MOTORCYCLE GASOLINE');
+  need(ptH(30));
+  const hy = y, h1 = ptH(15);
+  ['A', 'B', 'C', 'D', 'G', 'H', 'I'].forEach(c => cell(c, c, h1 * 2, { B: 'DATE', C: 'TRAVEL FROM', D: 'TRAVEL TO', G: 'TOTAL KM', H: 'RATE PER KM', I: 'AMOUNT' }[c] || '', { bold: true, wrap: true }));
+  cell('E', 'F', h1, 'ODOMETER READING', { bold: true, size: 8 });
+  y = hy + h1;
+  cell('E', 'E', h1, 'START', { bold: true }); cell('F', 'F', h1, 'END', { bold: true });
+  y = hy + h1 * 2;
+  let gasTotal = 0;
+  const byDate = new Map();
+  data.gas.forEach(g => { const kd = g.date || ''; if (!byDate.has(kd)) byDate.set(kd, []); byDate.get(kd).push(g); });
+  const dates = Array.from(byDate.keys()).sort();
+  const rh = ptH(15);
+  dates.forEach(dk => {
+    const legs = byDate.get(dk);
+    need(rh * (legs.length + 1));
+    const top = y;
+    legs.forEach(g => {
+      const km = rmRound2(Number(g.km) || 0), rate = Number(g.rate) || 16, amt = rmRound2(km * rate);
+      gasTotal += amt;
+      cell('A', 'A', rh, '');
+      ['C', 'D'].forEach(c => cell(c, c, rh, c === 'C' ? g.from : g.to, { size: 8 }));
+      cell('E', 'E', rh, '0', { size: 8 }); cell('F', 'F', rh, num(km), { size: 8 }); cell('G', 'G', rh, num(km), { size: 8 });
+      cell('H', 'H', rh, rate.toFixed(2), { size: 8, align: 'right' }); cell('I', 'I', rh, money(amt), { align: 'right' });
+      y += rh;
+    });
+    const blockBottom = y;
+    y = top; cell('B', 'B', blockBottom - top, longDate(dk), { size: 8 }); y = blockBottom;
+    row(rh, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map(c => [c, c, '']));
+  });
+  if (!dates.length) { row(rh, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map(c => [c, c, ''])); row(rh, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map(c => [c, c, ''])); }
+  subtotal(gasTotal);
+
+  // Commute
+  section('COMMUTE TRANSPO DESCRIPTION');
+  row(ptH(21), [['A', 'A', ''], ['B', 'B', 'DATE', { bold: true }], ['C', 'C', 'TRAVEL FROM', { bold: true }], ['D', 'D', 'TRAVEL TO', { bold: true }],
+    ['E', 'E', 'MODE OF TRANSPO.', { bold: true, size: 7, wrap: true }], ['F', 'F', 'w/o Ticket', { bold: true, size: 8 }], ['G', 'G', 'with Ticket', { bold: true, size: 8 }],
+    ['H', 'H', 'Note', { bold: true }], ['I', 'I', 'AMOUNT', { bold: true }]]);
+  const com = data.commute.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  let comTotal = 0;
+  const comRow = (c) => {
+    const wo = c ? Number(c.withoutTicket) || 0 : 0, wt = c ? Number(c.withTicket) || 0 : 0;
+    comTotal += wo + wt;
+    return [['A', 'A', ''], ['C', 'C', c ? c.from : ''], ['D', 'D', c ? c.to : ''], ['E', 'E', c ? c.mode : ''],
+      ['F', 'F', c && wo ? num(wo) : ''], ['G', 'G', c && wt ? num(wt) : ''], ['H', 'H', c ? c.note : ''], ['I', 'I', money(wo + wt), { align: 'right' }]];
+  };
+  // One merged DATE cell per day (kept on one page).
+  const comDays = [];
+  com.forEach(c => { const last = comDays[comDays.length - 1]; if (last && last.date === (c.date || '')) last.rows.push(c); else comDays.push({ date: c.date || '', rows: [c] }); });
+  comDays.forEach(day => {
+    need(rh * day.rows.length);
+    const top = y;
+    day.rows.forEach(c => { comRow(c).forEach(cl => cell(cl[0], cl[1], rh, cl[2], cl[3])); y += rh; });
+    const bottom = y; y = top; cell('B', 'B', bottom - top, longDate(day.date), { size: 8 }); y = bottom;
+  });
+  for (let i = com.length; i < 2; i++) row(rh, [['B', 'B', '']].concat(comRow(null)));
+  subtotal(comTotal);
+
+  // Supplies + Others
+  const descSection = (title, rows, rowPt, bold) => {
+    section(title);
+    row(rh, [['A', 'A', ''], ['B', 'B', 'DATE', { bold: true }], ['C', 'D', 'DESCRIPTION', { bold: true }], ['E', 'H', 'NOTE', { bold: true }], ['I', 'I', 'AMOUNT', { bold: true }]]);
+    const sorted = rows.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    let total = 0;
+    for (let i = 0; i < Math.max(1, sorted.length); i++) {
+      const e = sorted[i];
+      const amt = e ? rmRound2(Number(e.amount) || 0) : 0;
+      total += amt;
+      row(ptH(rowPt), [['A', 'A', ''], ['B', 'B', e ? longDate(e.date) : '', { size: 8 }], ['C', 'D', e ? e.description : '', { bold, wrap: true }],
+        ['E', 'H', e ? e.note : '', { bold, wrap: true }], ['I', 'I', e ? money(amt) : '', { bold: true, align: 'right' }]]);
+    }
+    subtotal(total);
+  };
+  descSection('SUPPLIES, ETC.', data.supplies, 15, false);
+  descSection('OTHERS: NIGHT MEAL', data.others, 22.8, true);
+
+  // Grand total + signatures
+  y += ptH(6);
+  row(ptH(19.2), [['A', 'F', '', { border: false }], ['G', 'H', 'GRAND TOTAL:', { bold: true, size: 12, align: 'left', fill: YELLOW }], ['I', 'I', money(grand), { bold: true, size: 12, align: 'right', fill: YELLOW, thick: true }]]);
+  y += ptH(6);
+  ['Received By:', 'Noted By:', 'Approved By:'].forEach(label => {
+    need(ptH(22.5));
+    cell('A', 'B', ptH(22.5), label, { border: false, align: 'left' });
+    doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.25);
+    doc.line(X[2], y + ptH(22.5) - 1, X[3], y + ptH(22.5) - 1);
+    y += ptH(22.5);
+  });
+  return doc.output('blob');
+}
+
+async function rmGenerateFormPdf() {
+  if (!rmCheckGenerateInputs()) return;
+  const { bits, info, data } = rmFormData();
+  if (!bits.name) { alert('Ilagay ang Employee Name.'); document.getElementById('rmEmpName').focus(); return; }
+  const btn = document.getElementById('rmFormPdfBtn');
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = '⏳ Ginagawa…';
+  try {
+    const blob = await rmBuildFormPdf(info, data);
+    rmDownload(blob, ['Reimbursement', bits.first, bits.mon, bits.day].filter(Boolean).join('_') + '.pdf');
+  } catch (err) {
+    console.error('rmGenerateFormPdf failed', err);
+    alert('Hindi nagawa ang PDF: ' + (err && err.message ? err.message : 'unknown error'));
   } finally {
     btn.disabled = false;
     btn.textContent = oldText;
@@ -9549,6 +9833,8 @@ document.getElementById('rmDept').addEventListener('change', (e) => rmLsSet('rm_
 }));
 document.getElementById('rmXlsxBtn').addEventListener('click', rmGenerateXlsx);
 document.getElementById('rmDocxBtn').addEventListener('click', rmGenerateEntriesDocx);
+document.getElementById('rmFormPdfBtn').addEventListener('click', rmGenerateFormPdf);
+document.getElementById('rmMapsPdfBtn').addEventListener('click', () => rmGenerateMaps('pdf'));
 
 document.getElementById('rmEntryList').addEventListener('click', async (e) => {
   const btn = e.target.closest('button[data-action]');
