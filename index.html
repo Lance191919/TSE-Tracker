@@ -909,6 +909,9 @@
   .rm-shot-status.warn { color: var(--amber); }
   .rm-shot-status.busy { color: var(--accent); }
   .rm-shot-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  button.rm-km-chip { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; margin: 2px 4px 2px 0; font-size: 12.5px; font-weight: 600; }
+  button.rm-km-chip.active { background: var(--green); color: #111; border-color: var(--green); }
+  button.rm-km-chip:hover { border-color: var(--accent); }
   .rm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 4px 0 4px; }
   .rm-stats .stat .num { font-size: 18px; }
   .rm-entry-list { display: flex; flex-direction: column; gap: 10px; }
@@ -1684,7 +1687,6 @@
         <button type="button" id="rmDocxBtn">⬇ Word (Maps)</button>
         <button type="button" id="rmFormPdfBtn">⬇ PDF (Reimbursement Form)</button>
         <button type="button" id="rmMapsPdfBtn">⬇ PDF (Maps)</button>
-        <label class="rm-check"><input type="checkbox" id="rmOnePerPage2" checked> Isang petsa bawat page</label>
         <button type="button" class="secondary" id="rmEntriesRefreshBtn">🔄 Refresh</button>
       </div>
       <div id="rmEntryList" class="rm-entry-list"></div>
@@ -7840,7 +7842,7 @@ function rmDateLayout(items) {
   return best;
 }
 
-function rmDrawingXml(rid, docPrId, name, cx, cy) {
+function rmDrawingXml(rid, docPrId, name, cx, cy, noBorder) {
   return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">` +
     `<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>` +
     `<wp:docPr id='${docPrId}' name='Picture ${docPrId}'/>` +
@@ -7850,7 +7852,7 @@ function rmDrawingXml(rid, docPrId, name, cx, cy) {
     `<pic:nvPicPr><pic:cNvPr id='${docPrId}' name='${rmXmlEsc(name)}'/><pic:cNvPicPr/></pic:nvPicPr>` +
     `<pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
     `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
-    `<a:ln w="12700"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:ln></pic:spPr>` +
+    (noBorder ? '' : `<a:ln w="12700"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:ln>`) + `</pic:spPr>` +
     `</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
 }
 
@@ -7918,39 +7920,121 @@ function rmDataUrlParts(dataUrl) {
    One date per page: date label, then its screenshots in a grid sized to
    fit that page, each with a thin black border.
    Same screenshot used on many dates is stored once in the file. */
-async function rmBuildDocx(groups, opts) {
-  const onePerPage = !opts || opts.onePerPage !== false;
+/* ---------- Maps layout: 9 per page ----------
+   Letter page, 0.4" margins, 3 × 3 equal boxes (one box = one trip's
+   screenshot, fitted inside without stretching or cropping, box has a thin
+   black border). Trips fill the boxes in date order, so every page holds 9.
+   Above each row, a small boxed date label sits over that date's boxes
+   (a row can hold two dates — each gets its own label). */
+const RM_MAP9 = { pageW: 8.5, pageH: 11, margin: 0.4, gap: 0.15, labelH: 0.36, boxH: 2.95, cols: 3, rows: 3, labelW: 1.35, pad: 0.05 };
+RM_MAP9.boxW = (RM_MAP9.pageW - 2 * RM_MAP9.margin - (RM_MAP9.cols - 1) * RM_MAP9.gap) / RM_MAP9.cols;
+
+/* groups → pages → rows → { slots: [item|null ×3], runs: [{ label, start, len }] } */
+function rmMapPages(groups) {
+  const flat = [];
+  groups.forEach(g => g.items.forEach(it => flat.push(Object.assign({ label: g.label }, it))));
+  const per = RM_MAP9.cols * RM_MAP9.rows;
+  const pages = [];
+  for (let p = 0; p < flat.length; p += per) {
+    const pageItems = flat.slice(p, p + per);
+    const rows = [];
+    for (let r = 0; r < pageItems.length; r += RM_MAP9.cols) {
+      const slots = pageItems.slice(r, r + RM_MAP9.cols);
+      while (slots.length < RM_MAP9.cols) slots.push(null);
+      const runs = [];
+      slots.forEach((it, i) => {
+        if (!it) return;
+        const last = runs[runs.length - 1];
+        if (last && last.label === it.label && last.start + last.len === i) last.len++;
+        else runs.push({ label: it.label, start: i, len: 1 });
+      });
+      rows.push({ slots, runs });
+    }
+    pages.push(rows);
+  }
+  return pages;
+}
+/* Size (inches) of a screenshot fitted inside a box, keeping its shape. */
+function rmFitInBox(it) {
+  const aw = RM_MAP9.boxW - 2 * RM_MAP9.pad, ah = RM_MAP9.boxH - 2 * RM_MAP9.pad;
+  const ratio = rmRatio(it);
+  let w = aw, h = aw * ratio;
+  if (h > ah) { h = ah; w = ah / ratio; }
+  return { w, h };
+}
+
+async function rmBuildDocx(groups) {
   const zip = new JSZip();
-  const media = new Map(); // imageKey → { rid, file }
+  const media = new Map();
   let ridN = 10, picN = 1;
-  const body = [];
   const relsImgs = [];
   const exts = new Set();
+  const T = v => Math.round(v * 1440);                  // inches → twips
+  const E = v => Math.round(v * 914400);                // inches → EMU
+  const boxT = T(RM_MAP9.boxW), gapT = T(RM_MAP9.gap);
+  const colsT = [boxT, gapT, boxT, gapT, boxT];
+  const noBorders = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(s => `<w:${s} w:val="nil"/>`).join('');
+  const boxBorders = ['top', 'left', 'bottom', 'right'].map(s => `<w:${s} w:val="single" w:sz="8" w:space="0" w:color="000000"/>`).join('');
+  const nilCell = ['top', 'left', 'bottom', 'right'].map(s => `<w:${s} w:val="nil"/>`).join('');
+  const tc = (w, span, borders, content, vAlign) =>
+    `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}<w:tcBorders>${borders}</w:tcBorders>` +
+    `${vAlign ? `<w:vAlign w:val="${vAlign}"/>` : ''}</w:tcPr>${content || '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>'}</w:tc>`;
+  const labelPara = (text, spanW) => {
+    const side = Math.max(0, Math.round((spanW - T(RM_MAP9.labelW)) / 2));
+    const b = s => `<w:${s} w:val="single" w:sz="6" w:space="2" w:color="000000"/>`;
+    return `<w:p><w:pPr><w:keepNext/><w:pBdr>${b('top')}${b('left')}${b('bottom')}${b('right')}</w:pBdr>` +
+      `<w:spacing w:before="0" w:after="40"/><w:ind w:left="${side}" w:right="${side}"/><w:jc w:val="center"/></w:pPr>` +
+      `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${rmXmlEsc(text)}</w:t></w:r></w:p>`;
+  };
+  const picFor = it => {
+    const parts = rmDataUrlParts(it.dataUrl);
+    if (!parts) return '';
+    let m = media.get(it.imageKey);
+    if (!m) {
+      const file = `image${media.size + 1}.${parts.ext}`;
+      m = { rid: 'rId' + (ridN++), file };
+      media.set(it.imageKey, m);
+      zip.file('word/media/' + file, parts.b64, { base64: true });
+      relsImgs.push(`<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${file}"/>`);
+      exts.add(parts.ext);
+    }
+    const f = rmFitInBox(it);
+    return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>${rmDrawingXml(m.rid, picN++, m.file, E(f.w), E(f.h), true)}</w:p>`;
+  };
 
-  groups.forEach((g, gi) => {
-    const items = g.items.filter(it => rmDataUrlParts(it.dataUrl));
-    if (!items.length) return;
-    if (gi > 0 && !onePerPage) body.push('<w:p><w:pPr><w:spacing w:before="0" w:after="200"/></w:pPr></w:p>');
-    body.push(rmDateLabelXml(g.label, gi > 0 && onePerPage));
-    const layout = rmDateLayout(items);
-    const cells = items.map(it => {
-      const parts = rmDataUrlParts(it.dataUrl);
-      let m = media.get(it.imageKey);
-      if (!m) {
-        const file = `image${media.size + 1}.${parts.ext === 'jpeg' ? 'jpeg' : parts.ext}`;
-        m = { rid: 'rId' + (ridN++), file };
-        media.set(it.imageKey, m);
-        zip.file('word/media/' + file, parts.b64, { base64: true });
-        relsImgs.push(`<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${file}"/>`);
-        exts.add(parts.ext);
-      }
-      const cx = layout.width, cy = Math.round(layout.width * rmRatio(it));
-      return rmDrawingXml(m.rid, picN++, m.file, cx, cy);
+  const body = [];
+  rmMapPages(groups).forEach((rows, pi) => {
+    if (pi > 0) body.push('<w:p><w:pPr><w:pageBreakBefore/><w:spacing w:before="0" w:after="0"/><w:rPr><w:sz w:val="2"/></w:rPr></w:pPr></w:p>');
+    let trs = '';
+    rows.forEach(row => {
+      // Label row: one merged cell per date run, empty cells elsewhere.
+      let cells = '', col = 0;
+      const slotCol = s => s * 2;
+      row.runs.forEach(run => {
+        const startCol = slotCol(run.start), endCol = slotCol(run.start + run.len - 1);
+        while (col < startCol) { cells += tc(colsT[col], 1, nilCell); col++; }
+        const span = endCol - startCol + 1;
+        const w = colsT.slice(startCol, endCol + 1).reduce((a, b) => a + b, 0);
+        cells += tc(w, span, nilCell, labelPara(run.label, w), 'bottom');
+        col = endCol + 1;
+      });
+      while (col < 5) { cells += tc(colsT[col], 1, nilCell); col++; }
+      trs += `<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${T(RM_MAP9.labelH)}" w:hRule="exact"/></w:trPr>${cells}</w:tr>`;
+      // Map row: three bordered boxes with gaps between.
+      let mapCells = '';
+      row.slots.forEach((it, s) => {
+        if (s > 0) mapCells += tc(gapT, 1, nilCell);
+        mapCells += it ? tc(boxT, 1, boxBorders, picFor(it), 'center') : tc(boxT, 1, nilCell);
+      });
+      trs += `<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${T(RM_MAP9.boxH)}" w:hRule="exact"/></w:trPr>${mapCells}</w:tr>`;
     });
-    body.push(rmGridXml(cells, layout.cols));
+    body.push(`<w:tbl><w:tblPr><w:tblW w:w="${colsT.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:jc w:val="center"/><w:tblBorders>${noBorders}</w:tblBorders>` +
+      `<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr>` +
+      `<w:tblGrid>${colsT.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${trs}</w:tbl>`);
   });
 
-  const sect = '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>';
+  const m = T(RM_MAP9.margin);
+  const sect = `<w:sectPr><w:pgSz w:w="${T(RM_MAP9.pageW)}" w:h="${T(RM_MAP9.pageH)}"/><w:pgMar w:top="${m}" w:right="${m}" w:bottom="${m}" w:left="${m}" w:header="300" w:footer="300" w:gutter="0"/></w:sectPr>`;
   const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
     'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
@@ -7974,7 +8058,7 @@ async function rmBuildDocx(groups, opts) {
   zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + relsImgs.join('') + '</Relationships>');
   zip.file('word/document.xml', doc);
-  return zip.generateAsync({ type: (opts && opts.type) || 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
 /* ---------- KM reader (OCR text → km values) ----------
@@ -8001,6 +8085,42 @@ function rmExtractKms(text) {
     });
   }
   return kms;
+}
+
+/* km values with whether they had a decimal point as read. */
+function rmKmTokens(text) {
+  const out = [];
+  String(text || '').split(/\r?\n/).forEach(line => {
+    const t = line.replace(/,/g, '.');
+    const re = /(\d{1,4}(?:\.\d{1,2})?)\s*km\b/gi;
+    let m;
+    while ((m = re.exec(t))) { const v = parseFloat(m[1]); if (v > 0 && v < 1000) out.push({ v, dec: m[1].includes('.') }); }
+  });
+  return out;
+}
+/* Merges the two reads. The decimal point of small text is often lost
+   ("7.5 km" read as "75 km"), so a whole number from the right-column read
+   that is about 10× the other routes is taken as the same value with its
+   dot restored ("82 km" → 8.2). Values read with a dot are trusted from
+   either read. Returns the km values (the shortest is used). */
+function rmMergeKmReads(rightText, fullText) {
+  const right = rmKmTokens(rightText), full = rmKmTokens(fullText);
+  const vals = [];
+  const add = v => { v = Math.round(v * 100) / 100; if (!vals.some(x => Math.abs(x - v) < 0.051)) vals.push(v); };
+  right.filter(t => t.dec).forEach(t => add(t.v));
+  full.filter(t => t.dec).forEach(t => add(t.v));
+  const decs = vals.slice();
+  // Whole numbers are only kept when they fit next to the routes read with a
+  // dot (alternative routes are always within about ±50% of each other).
+  right.filter(t => !t.dec).forEach(t => {
+    if (!decs.length) { add(t.v); return; }
+    const lo = Math.min(...decs) * 0.7, hi = Math.max(...decs) * 1.5, d = t.v / 10;
+    if (t.v >= 10 && d >= lo && d <= hi) add(d);
+    else if (t.v >= lo && t.v <= hi) add(t.v);
+  });
+  if (!vals.length) full.filter(t => !t.dec).forEach(t => add(t.v));
+  if (!vals.length) rmExtractKms(fullText).forEach(add);   // last resort: meters ("800 m")
+  return vals.sort((a, b) => a - b);
 }
 
 /* ---------- Excel (.xlsx) builder from the team's reimbursement template ----------
@@ -8953,20 +9073,25 @@ async function rmGetOcrWorker() {
 }
 /* Enlarged, grayscale, contrast-stretched copy of the screenshot — small
    Google Maps text reads far more reliably this way. */
-function rmOcrCanvas(dataUrl) {
+/* opts.cropRight: keep only the right part of the screenshot (where Google
+   Maps puts "x min / x km"); opts.threshold: turn into pure black/white. */
+function rmOcrCanvas(dataUrl, opts) {
+  opts = opts || {};
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onerror = () => reject(new Error('Hindi mabasa ang image.'));
     img.onload = () => {
-      const scale = Math.max(1, Math.min(4, 2400 / img.naturalWidth));
+      const sx = opts.cropRight ? Math.round(img.naturalWidth * (1 - opts.cropRight)) : 0;
+      const sw = img.naturalWidth - sx;
+      const scale = Math.max(1, Math.min(4, (opts.cropRight ? 1600 : 2400) / sw));
       const c = document.createElement('canvas');
-      c.width = Math.round(img.naturalWidth * scale);
+      c.width = Math.round(sw * scale);
       c.height = Math.round(img.naturalHeight * scale);
       const ctx = c.getContext('2d');
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, c.width, c.height);
       ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, c.width, c.height);
+      ctx.drawImage(img, sx, 0, sw, img.naturalHeight, 0, 0, c.width, c.height);
       const px = ctx.getImageData(0, 0, c.width, c.height);
       const d = px.data;
       let lo = 255, hi = 0;
@@ -8976,18 +9101,26 @@ function rmOcrCanvas(dataUrl) {
         if (g < lo) lo = g; if (g > hi) hi = g;
       }
       const span = Math.max(1, hi - lo);
-      for (let i = 0; i < d.length; i += 4) { const g = Math.round((d[i] - lo) * 255 / span); d[i] = d[i + 1] = d[i + 2] = g; }
+      for (let i = 0; i < d.length; i += 4) {
+        let g = Math.round((d[i] - lo) * 255 / span);
+        if (opts.threshold) g = g > opts.threshold ? 255 : 0;
+        d[i] = d[i + 1] = d[i + 2] = g;
+      }
       ctx.putImageData(px, 0, 0);
       resolve(c);
     };
     img.src = dataUrl;
   });
 }
+/* Reads the km values twice — the right-hand column on its own (black/white,
+   where the small grey "7.5 km" text reads best) and the whole screenshot —
+   with sparse-text mode, then merges them (rmMergeKmReads). */
 async function rmReadKmFromShot(dataUrl) {
   const worker = await rmGetOcrWorker();
-  const canvas = await rmOcrCanvas(dataUrl);
-  const { data } = await worker.recognize(canvas);
-  return rmExtractKms(data && data.text);
+  try { await worker.setParameters({ tessedit_pageseg_mode: '11' }); } catch (e) { /* older worker: keep default */ }
+  const right = await worker.recognize(await rmOcrCanvas(dataUrl, { cropRight: 0.35, threshold: 170 }));
+  const full = await worker.recognize(await rmOcrCanvas(dataUrl));
+  return rmMergeKmReads(right.data && right.data.text, full.data && full.data.text);
 }
 
 /* ----- Quick routes ----- */
@@ -9093,8 +9226,8 @@ async function rmSetGasShot(blob) {
     kmEl.value = String(shortest);
     rmGasKmAuto = true;
     rmGasUpdateAmount();
-    const list = kms.map(k => (k === shortest ? `<strong>${k} km</strong>` : `${k} km`)).join(' · ');
-    rmSetGasStatus(`✓ Nabasa: ${list} → ginamit ang pinakamaikli, <strong>${shortest} km</strong>. Pakisilip kung tama; puwede mo itong palitan.`, 'ok');
+    const chips = kms.map(k => `<button type="button" class="rm-km-chip${k === shortest ? ' active' : ''}" data-km="${k}">${k} km</button>`).join('');
+    rmSetGasStatus(`✓ Nabasa: ${chips}<br>Ginamit ang pinakamaikli, <strong>${shortest} km</strong>. Pakisilip sa screenshot — kung mali, i-tap ang tamang KM o i-type ito.`, 'ok');
   } catch (err) {
     console.error('OCR failed', err);
     if (job !== rmOcrJob) return;
@@ -9501,11 +9634,10 @@ async function rmGenerateMaps(kind) {
   try {
     const { groups, skipped } = await rmMapGroups(gas);
     if (!groups.length) { alert('Walang biyahe na may screenshot.'); return; }
-    const onePerPage = document.getElementById('rmOnePerPage2').checked;
     const bits = rmFileBits();
     const base = ['map', bits.mon, bits.first].filter(Boolean).join('_');
-    if (kind === 'pdf') rmDownload(await rmBuildMapsPdf(groups, { onePerPage }), base + '.pdf');
-    else rmDownload(await rmBuildDocx(groups, { onePerPage }), base + '.docx');
+    if (kind === 'pdf') rmDownload(await rmBuildMapsPdf(groups), base + '.pdf');
+    else rmDownload(await rmBuildDocx(groups), base + '.docx');
     rmReportSkipped(kind === 'pdf' ? 'PDF' : 'Word file', groups.reduce((n, g) => n + g.items.length, 0), gas.length, skipped);
   } catch (err) {
     console.error('rmGenerateMaps failed', err);
@@ -9517,48 +9649,38 @@ async function rmGenerateMaps(kind) {
 }
 async function rmGenerateEntriesDocx() { return rmGenerateMaps('docx'); }
 
-/* ----- PDF: maps (same layout as the Word file) -----
-   Letter, 0.75" margins; each date on its own page with its date box and
-   all its screenshots sized to fit that page, each with a thin black border. */
-async function rmBuildMapsPdf(groups, opts) {
+/* ----- PDF: maps — same 9-per-page layout as the Word file ----- */
+async function rmBuildMapsPdf(groups) {
   const JsPDF = await srLoadJsPdf();
   const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const EMU = 36000;                     // EMU per mm
-  const M = 19.05, PAGE_W = 215.9, USABLE_W = PAGE_W - 2 * M;   // 7"
-  const onePerPage = !opts || opts.onePerPage !== false;
-  const added = new Set();
-  let y = M;
-  groups.forEach((g, gi) => {
-    const items = g.items;
-    const layout = rmDateLayout(items);
-    const w = layout.width / EMU;
-    const cellW = USABLE_W / layout.cols;
-    const rows = [];
-    for (let i = 0; i < items.length; i += layout.cols) rows.push(items.slice(i, i + layout.cols));
-    const rowHeights = rows.map(r => Math.max(...r.map(it => w * rmRatio(it))));
-    const blockH = 7 + 4.9 + rowHeights.reduce((a, h) => a + h + 5.08, 0);
-    if (gi > 0) {
-      if (onePerPage || y + blockH > 279.4 - M) { doc.addPage('letter', 'portrait'); y = M; }
-      else y += 6;
-    }
-    // Date label box
-    const boxW = 33.5, boxH = 7;
-    doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.25);
-    doc.rect((PAGE_W - boxW) / 2, y, boxW, boxH);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
-    doc.text(srPdfText(g.label), PAGE_W / 2, y + 4.8, { align: 'center' });
-    y += boxH + 4.9;
-    rows.forEach((r, ri) => {
-      r.forEach((it, ci) => {
-        const h = w * rmRatio(it);
-        const x = M + ci * cellW + (cellW - w) / 2;
-        const fmt = /^data:image\/png/i.test(it.dataUrl) ? 'PNG' : 'JPEG';
-        const alias = 'img_' + String(it.imageKey).replace(/[^\w]/g, '_');
-        doc.addImage(it.dataUrl, fmt, x, y, w, h, alias, 'FAST');
-        added.add(alias);
-        doc.setLineWidth(0.35); doc.rect(x, y, w, h);
+  const mm = v => v * 25.4;
+  const L = RM_MAP9;
+  rmMapPages(groups).forEach((rows, pi) => {
+    if (pi > 0) doc.addPage('letter', 'portrait');
+    let y = mm(L.margin);
+    rows.forEach(row => {
+      const slotX = s => mm(L.margin + s * (L.boxW + L.gap));
+      // Date labels (one per run of the same date)
+      row.runs.forEach(run => {
+        const x1 = slotX(run.start), x2 = slotX(run.start + run.len - 1) + mm(L.boxW);
+        const bw = mm(L.labelW), bh = mm(0.25);
+        const bx = (x1 + x2) / 2 - bw / 2, by = y + mm(L.labelH) - bh - mm(0.04);
+        doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.25); doc.rect(bx, by, bw, bh);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+        doc.text(srPdfText(run.label), (x1 + x2) / 2, by + bh / 2 + 1.1, { align: 'center' });
       });
-      y += rowHeights[ri] + 5.08;
+      y += mm(L.labelH);
+      // Equal boxes
+      row.slots.forEach((it, s) => {
+        if (!it) return;
+        const bx = slotX(s), bw = mm(L.boxW), bh = mm(L.boxH);
+        const f = rmFitInBox(it);
+        const iw = mm(f.w), ih = mm(f.h);
+        const fmt = /^data:image\/png/i.test(it.dataUrl) ? 'PNG' : 'JPEG';
+        doc.addImage(it.dataUrl, fmt, bx + (bw - iw) / 2, y + (bh - ih) / 2, iw, ih, 'img_' + String(it.imageKey).replace(/[^\w]/g, '_'), 'FAST');
+        doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.35); doc.rect(bx, y, bw, bh);
+      });
+      y += mm(L.boxH);
     });
   });
   return doc.output('blob');
@@ -9792,6 +9914,15 @@ document.getElementById('rmShotPasteBtn').addEventListener('click', async () => 
   if (blob) rmSetGasShot(blob);
 });
 document.getElementById('rmShotClearBtn').addEventListener('click', rmClearGasShot);
+document.getElementById('rmShotStatus').addEventListener('click', (e) => {
+  const chip = e.target.closest('button.rm-km-chip');
+  if (!chip) return;
+  e.stopPropagation();
+  document.getElementById('rmGasKm').value = chip.dataset.km;
+  rmGasKmAuto = false;
+  rmGasUpdateAmount();
+  document.querySelectorAll('#rmShotStatus .rm-km-chip').forEach(b => b.classList.toggle('active', b === chip));
+});
 document.getElementById('rmShotZone').addEventListener('click', (e) => {
   if (e.target.closest('button')) return;
   rmPickImageFile(rmSetGasShot);
