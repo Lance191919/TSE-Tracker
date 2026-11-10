@@ -7881,6 +7881,29 @@ function rmGridXml(cells, cols) {
     `<w:tblGrid>${Array(cols).fill(`<w:gridCol w:w="${cellW}"/>`).join('')}</w:tblGrid>${rows}</w:tbl>`;
 }
 
+/* Word only shows PNG / JPEG reliably: anything else (WebP, GIF, BMP…) is
+   redrawn as PNG first. Returns null if the image can't be read at all. */
+function rmWordReadyImage(dataUrl) {
+  const s = String(dataUrl || '').trim();
+  if (/^data:image\/(png|jpe?g);base64,/i.test(s)) return Promise.resolve(s.replace(/\s+/g, ''));
+  if (!/^data:image\//i.test(s)) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0);
+        resolve(c.toDataURL('image/png'));
+      } catch (err) { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = s;
+  });
+}
+
 function rmDataUrlParts(dataUrl) {
   const m = /^data:image\/(png|jpe?g|gif|webp);base64,(.*)$/i.exec(dataUrl || '');
   if (!m) return null;
@@ -8240,15 +8263,27 @@ async function rmLoadRoutes() {
   }
 }
 
-async function rmEnsureImages(ids) {
-  const need = Array.from(new Set(ids)).filter(id => id && !rmImageCache.has(id));
-  for (let i = 0; i < need.length; i += 20) {
-    const chunk = need.slice(i, i + 20);
-    const { data, error } = await sb.from('reimbursement_routes').select('id, image_data').in('id', chunk);
-    if (error) throw error;
-    (data || []).forEach(row => { if (row.image_data) rmImageCache.set(row.id, row.image_data); });
+/* Fetches screenshots (image_data) for the given row ids into a cache, a few
+   at a time; if a batch fails, each id is tried on its own so one bad row
+   can't stop the rest. */
+async function rmFetchImagesInto(table, ids, cache) {
+  const need = Array.from(new Set(ids)).filter(id => id && !cache.has(id));
+  for (let i = 0; i < need.length; i += 5) {
+    const chunk = need.slice(i, i + 5);
+    const { data, error } = await sb.from(table).select('id, image_data').in('id', chunk);
+    if (!error) {
+      (data || []).forEach(row => { if (row.image_data) cache.set(row.id, row.image_data); });
+      continue;
+    }
+    console.error(`Fetching screenshots from ${table} failed; retrying one by one`, error);
+    for (const id of chunk) {
+      const one = await sb.from(table).select('id, image_data').eq('id', id);
+      if (one.error) { console.error('Screenshot fetch failed for', id, one.error); continue; }
+      (one.data || []).forEach(row => { if (row.image_data) cache.set(row.id, row.image_data); });
+    }
   }
 }
+async function rmEnsureImages(ids) { await rmFetchImagesInto('reimbursement_routes', ids, rmImageCache); }
 
 /* Screenshot file/clipboard blob → { dataUrl, w, h }. Very large images are
    scaled down to 1000px wide JPEG so the database row stays small. */
@@ -8861,15 +8896,7 @@ async function rmLoadEntries() {
   }
 }
 
-async function rmEnsureEntryImages(ids) {
-  const need = Array.from(new Set(ids)).filter(id => id && !rmEntryImageCache.has(id));
-  for (let i = 0; i < need.length; i += 20) {
-    const chunk = need.slice(i, i + 20);
-    const { data, error } = await sb.from('reimbursement_entries').select('id, image_data').in('id', chunk);
-    if (error) throw error;
-    (data || []).forEach(row => { if (row.image_data) rmEntryImageCache.set(row.id, row.image_data); });
-  }
-}
+async function rmEnsureEntryImages(ids) { await rmFetchImagesInto('reimbursement_entries', ids, rmEntryImageCache); }
 
 /* Screenshot for a Gasoline entry: its own, or else its route's. */
 async function rmEntryShot(e) {
@@ -9414,17 +9441,32 @@ async function rmGenerateEntriesDocx() {
     await rmEnsureEntryImages(gas.filter(e => e.imgW).map(e => e.id));
     await rmEnsureImages(gas.map(e => { const r = rmEntryRoute(e); return r && r.imgW ? r.id : null; }).filter(Boolean));
     const groups = [];
+    const skipped = [];          // trips that could not go into the Word file, with the reason
+    const wordImages = new Map(); // imageKey → Word-ready data URL (png/jpeg)
     for (const e of gas) {
-      const shot = await rmEntryShot(e);
-      if (!shot) continue;
+      let shot = null;
+      try { shot = await rmEntryShot(e); } catch (err) { console.error('rmEntryShot failed', e.id, err); }
+      if (!shot) {
+        skipped.push({ e, why: rmEntryHasShot(e) ? 'hindi ma-load ang screenshot' : 'walang screenshot' });
+        continue;
+      }
+      if (!wordImages.has(shot.key)) wordImages.set(shot.key, await rmWordReadyImage(shot.dataUrl));
+      const dataUrl = wordImages.get(shot.key);
+      if (!dataUrl) { skipped.push({ e, why: 'hindi mabasa ang larawan' }); continue; }
       let g = groups[groups.length - 1];
       if (!g || g.key !== e.date) { g = { key: e.date, label: rmIsoLabel(e.date), items: [] }; groups.push(g); }
-      g.items.push({ imageKey: shot.key, dataUrl: shot.dataUrl, w: shot.w, h: shot.h });
+      g.items.push({ imageKey: shot.key, dataUrl, w: shot.w, h: shot.h });
     }
     if (!groups.length) { alert('Walang biyahe na may screenshot.'); return; }
     const blob = await rmBuildDocx(groups, { onePerPage: document.getElementById('rmOnePerPage2').checked });
     const bits = rmFileBits();
     rmDownload(blob, ['map', bits.mon, bits.first].filter(Boolean).join('_') + '.docx');
+    const used = groups.reduce((n, g) => n + g.items.length, 0);
+    if (skipped.length) {
+      const lines = skipped.slice(0, 12).map(s => `• ${rmIsoLabel(s.e.date)} — ${rmEntryTitle(s.e)} (${s.why})`);
+      if (skipped.length > 12) lines.push(`• …at ${skipped.length - 12} pa`);
+      alert(`Na-download ang Word file: ${used} sa ${gas.length} biyahe ang naisama.\n\nHINDI naisama (${skipped.length}):\n${lines.join('\n')}\n\nBuksan ang mga biyaheng ito at mag-paste ulit ng screenshot, tapos i-download ulit ang Word.`);
+    }
   } catch (err) {
     console.error('rmGenerateEntriesDocx failed', err);
     alert('Hindi nagawa ang Word file: ' + (err && err.message ? err.message : 'unknown error'));
