@@ -9264,6 +9264,9 @@ async function rmUpsertRouteShot(from, to, km, img) {
 }
 
 async function rmInsertEntry(entry, image) {
+  // Keep the order the trips were typed in (the database sets created_at;
+  // this is the same moment for the copy on screen).
+  if (!entry.createdAt) entry.createdAt = new Date().toISOString();
   reimbEntries.push(entry);
   if (image) rmEntryImageCache.set(entry.id, image);
   renderReimbEntries();
